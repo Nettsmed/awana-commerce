@@ -36,11 +36,18 @@ class Awana_Checkout_Org {
 	 * @return array
 	 */
 	public function add_checkout_field( $fields ) {
+		// Debug logging.
+		error_log( 'Awana Checkout Org: add_checkout_field called' );
+		error_log( 'Awana Checkout Org: AWANA_USE_SAMPLE_ORGS = ' . ( defined( 'AWANA_USE_SAMPLE_ORGS' ) ? ( AWANA_USE_SAMPLE_ORGS ? 'true' : 'false' ) : 'not defined' ) );
+		error_log( 'Awana Checkout Org: is_user_logged_in = ' . ( is_user_logged_in() ? 'yes' : 'no' ) );
+
 		if ( ! is_user_logged_in() ) {
 			return $fields;
 		}
 
 		$organizations = $this->get_user_organizations();
+		error_log( 'Awana Checkout Org: organizations count = ' . count( $organizations ) );
+
 		if ( empty( $organizations ) ) {
 			return $fields;
 		}
