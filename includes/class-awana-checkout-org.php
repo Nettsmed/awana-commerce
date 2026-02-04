@@ -157,6 +157,11 @@ class Awana_Checkout_Org {
 	 * @return array
 	 */
 	private function get_user_organizations() {
+		// Development mode: return sample data for testing.
+		if ( defined( 'AWANA_USE_SAMPLE_ORGS' ) && AWANA_USE_SAMPLE_ORGS ) {
+			return $this->get_sample_organizations();
+		}
+
 		$user_id = get_current_user_id();
 		if ( empty( $user_id ) ) {
 			return array();
@@ -221,5 +226,50 @@ class Awana_Checkout_Org {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Get sample organizations for development/testing.
+	 *
+	 * Enable by adding to wp-config.php:
+	 * define( 'AWANA_USE_SAMPLE_ORGS', true );
+	 *
+	 * @return array
+	 */
+	private function get_sample_organizations() {
+		return array(
+			array(
+				'organizationId'     => 'test-org-001',
+				'memberId'           => 'member-001',
+				'title'              => 'Test Organisasjon AS',
+				'orgNumber'          => '999888777',
+				'pogCustomerNumber'  => '10001',
+				'billingAddress'     => array(
+					'street'     => 'Testveien 1',
+					'postalCode' => '0150',
+					'city'       => 'Oslo',
+				),
+				'billingEmail'       => 'faktura@test.no',
+				'billingContactName' => 'Test Person',
+				'billingPhone'       => '+47 123 45 678',
+				'userRole'           => 'admin',
+			),
+			array(
+				'organizationId'     => 'test-org-002',
+				'memberId'           => 'member-002',
+				'title'              => 'Andre Bedrift AS',
+				'orgNumber'          => '888777666',
+				'pogCustomerNumber'  => '10002',
+				'billingAddress'     => array(
+					'street'     => 'Annengate 5',
+					'postalCode' => '5003',
+					'city'       => 'Bergen',
+				),
+				'billingEmail'       => 'faktura@andre.no',
+				'billingContactName' => 'Ola Nordmann',
+				'billingPhone'       => '+47 987 65 432',
+				'userRole'           => 'member',
+			),
+		);
 	}
 }
