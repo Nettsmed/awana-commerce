@@ -83,10 +83,10 @@ class Awana_Checkout_Org {
 			return;
 		}
 
+		$options = $this->build_options( $organizations );
 		$selected = isset( $_POST[ self::FIELD_KEY ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) ) : '';
-		if ( empty( $selected ) && count( $organizations ) === 1 ) {
-			$first_org = reset( $organizations );
-			$selected  = (string) ( $first_org['organizationId'] ?? '' );
+		if ( empty( $selected ) && count( $options ) === 1 ) {
+			$selected = array_key_first( $options );
 		}
 		if ( empty( $selected ) ) {
 			wc_add_notice( __( 'Velg organisasjon for a fortsette.', 'awana-digital-sync' ), 'error' );
@@ -119,6 +119,7 @@ class Awana_Checkout_Org {
 			return;
 		}
 
+		$options = $this->build_options( $organizations );
 		$selected = '';
 		if ( isset( $data[ self::FIELD_KEY ] ) ) {
 			$selected = wc_clean( $data[ self::FIELD_KEY ] );
@@ -126,9 +127,8 @@ class Awana_Checkout_Org {
 			$selected = wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) );
 		}
 
-		if ( empty( $selected ) && count( $organizations ) === 1 ) {
-			$first_org = reset( $organizations );
-			$selected  = (string) ( $first_org['organizationId'] ?? '' );
+		if ( empty( $selected ) && count( $options ) === 1 ) {
+			$selected = array_key_first( $options );
 		}
 
 		if ( empty( $selected ) ) {
