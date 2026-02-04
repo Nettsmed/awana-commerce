@@ -154,7 +154,7 @@ class Awana_Org_Sync {
 			}
 		}
 
-		return (int) get_current_user_id();
+		return 0;
 	}
 
 	/**
