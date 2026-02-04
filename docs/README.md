@@ -12,6 +12,15 @@ WordPress plugin that syncs invoices from Digital/CRM (Firebase) to WooCommerce 
 define( 'AWANA_DIGITAL_API_KEY', 'your-secret-api-key-here' );
 ```
 
+### Firebase Org Sync (Login)
+
+Configure the Firebase org sync in `wp-config.php`:
+
+```php
+define( 'AWANA_FIREBASE_GET_ORGS_URL', 'https://europe-west3-awana-server.cloudfunctions.net/getUserOrganizations' );
+define( 'AWANA_FIREBASE_API_KEY', 'your-firebase-api-key-here' );
+```
+
 ## Requirements
 
 - WordPress 5.8+
@@ -208,4 +217,3 @@ If a product is not found, the line item is skipped and a warning is logged.
 - API key authentication is required for all endpoints
 - API key must be defined in `wp-config.php` (not in the plugin file)
 - Use different API keys for staging and production environments
-

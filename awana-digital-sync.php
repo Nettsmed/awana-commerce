@@ -36,9 +36,11 @@ include_once 'includes/product-mapping.php';
 include_once 'includes/class-awana-crm-webhook.php';
 include_once 'includes/class-awana-order-handler.php';
 include_once 'includes/class-awana-rest-controller.php';
+include_once 'includes/class-awana-org-sync.php';
 
 // Initialize the plugin
 Awana_REST_Controller::init();
+Awana_Org_Sync::init();
 
 // Initialize admin UI only in admin context
 if ( is_admin() ) {
