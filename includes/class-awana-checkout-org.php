@@ -84,6 +84,10 @@ class Awana_Checkout_Org {
 		}
 
 		$selected = isset( $_POST[ self::FIELD_KEY ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) ) : '';
+		if ( empty( $selected ) && count( $organizations ) === 1 ) {
+			$first_org = reset( $organizations );
+			$selected  = (string) ( $first_org['organizationId'] ?? '' );
+		}
 		if ( empty( $selected ) ) {
 			wc_add_notice( __( 'Velg organisasjon for a fortsette.', 'awana-digital-sync' ), 'error' );
 			return;
@@ -132,20 +136,18 @@ class Awana_Checkout_Org {
 		}
 
 		// Validate that the selected organization belongs to the user.
-		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
+		$selected_org = $this->find_org_by_id( $organizations, $selected );
+		if ( ! $selected_org ) {
 			return;
 		}
 
 		$order->update_meta_data( self::META_ORG_ID, $selected );
 
-		$selected_org = $this->find_org_by_id( $organizations, $selected );
-		if ( $selected_org ) {
-			if ( ! empty( $selected_org['memberId'] ) ) {
-				$order->update_meta_data( self::META_ORG_MEMBER_ID, $selected_org['memberId'] );
-			}
-			if ( ! empty( $selected_org['title'] ) ) {
-				$order->update_meta_data( self::META_ORG_TITLE, $selected_org['title'] );
-			}
+		if ( ! empty( $selected_org['memberId'] ) ) {
+			$order->update_meta_data( self::META_ORG_MEMBER_ID, $selected_org['memberId'] );
+		}
+		if ( ! empty( $selected_org['title'] ) ) {
+			$order->update_meta_data( self::META_ORG_TITLE, $selected_org['title'] );
 		}
 	}
 
