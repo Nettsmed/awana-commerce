@@ -86,6 +86,12 @@ class Awana_Checkout_Org {
 		$selected = isset( $_POST[ self::FIELD_KEY ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) ) : '';
 		if ( empty( $selected ) ) {
 			wc_add_notice( __( 'Velg organisasjon for a fortsette.', 'awana-digital-sync' ), 'error' );
+			return;
+		}
+
+		// Validate that the selected organization belongs to the user.
+		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
+			wc_add_notice( __( 'Ugyldig organisasjonsvalg.', 'awana-digital-sync' ), 'error' );
 		}
 	}
 
@@ -117,10 +123,16 @@ class Awana_Checkout_Org {
 		}
 
 		if ( empty( $selected ) && count( $organizations ) === 1 ) {
-			$selected = (string) ( $organizations[0]['organizationId'] ?? '' );
+			$first_org = reset( $organizations );
+			$selected  = (string) ( $first_org['organizationId'] ?? '' );
 		}
 
 		if ( empty( $selected ) ) {
+			return;
+		}
+
+		// Validate that the selected organization belongs to the user.
+		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
 			return;
 		}
 
