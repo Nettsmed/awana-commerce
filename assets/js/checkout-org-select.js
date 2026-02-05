@@ -533,6 +533,17 @@
 				}
 				// Re-sync cloned fields with originals after checkout update
 				self.syncFieldsFromOriginals();
+
+				// If on step 3, restore payment/shipping handlers and rename IDs
+				// (WooCommerce AJAX updates may replace DOM elements)
+				if (self.currentStep === 3) {
+					self.renamePaymentRadioIds();
+					self.renameShippingRadioIds();
+					self.attachPaymentClickHandlers();
+					self.attachShippingClickHandlers();
+					self.syncPaymentFromOriginal();
+					self.syncShippingFromOriginal();
+				}
 			});
 
 			// Handle WooCommerce validation errors
