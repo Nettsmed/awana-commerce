@@ -651,7 +651,7 @@
 }
 
 /* ==========================================================================
-   Payment Section Styling (Step 3)
+   Step 3 - Order Review Table (Clean, Light Design)
    ========================================================================== */
 
 .awana-wc-payment-container {
@@ -661,41 +661,204 @@
 .awana-wc-payment-container .woocommerce-checkout-review-order-table {
 	width: 100%;
 	border-collapse: collapse;
-	margin-bottom: 24px;
-	background: var(--awana-bg-subtle);
+	margin-bottom: 32px;
+	background: var(--awana-bg);
+	border: 1px solid var(--awana-border);
 	border-radius: var(--awana-radius-sm);
 	overflow: hidden;
 }
 
 .awana-wc-payment-container .woocommerce-checkout-review-order-table th,
 .awana-wc-payment-container .woocommerce-checkout-review-order-table td {
-	padding: 16px 20px;
+	padding: 14px 20px;
 	text-align: left;
 	border-bottom: 1px solid var(--awana-border);
 }
 
+/* Clean header - no dark background */
 .awana-wc-payment-container .woocommerce-checkout-review-order-table thead th {
-	background: var(--awana-dark);
-	color: white;
+	background: transparent;
+	color: var(--awana-text-muted);
 	font-weight: 600;
-	font-size: 14px;
+	font-size: 11px;
 	text-transform: uppercase;
-	letter-spacing: 0.5px;
+	letter-spacing: 0.8px;
+	border-bottom: 2px solid var(--awana-border);
+	padding: 12px 20px;
 }
 
-.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot th,
-.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot td {
-	font-weight: 600;
-}
-
-.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total th,
-.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total td {
-	font-size: 18px;
-	color: var(--awana-text);
+/* Product rows */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tbody td {
 	background: var(--awana-bg);
+	vertical-align: middle;
 }
 
-/* Payment methods */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tbody td.product-name {
+	font-weight: 600;
+	color: var(--awana-text);
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tbody td.product-name .product-quantity {
+	color: var(--awana-text-muted);
+	font-weight: 400;
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tbody td.product-total {
+	text-align: right;
+	font-weight: 500;
+	color: var(--awana-text);
+}
+
+/* Footer rows (subtotal, shipping, tax, total) */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot tr {
+	background: var(--awana-bg-subtle);
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot th {
+	font-weight: 500;
+	color: var(--awana-text-muted);
+	font-size: 14px;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot td {
+	text-align: right;
+	font-weight: 500;
+}
+
+/* Total row - emphasized */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total {
+	background: var(--awana-bg) !important;
+	border-top: 2px solid var(--awana-dark);
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total th {
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--awana-text);
+	padding: 18px 20px;
+}
+
+.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total td {
+	font-size: 20px;
+	font-weight: 700;
+	color: var(--awana-text);
+	padding: 18px 20px;
+}
+
+/* ==========================================================================
+   Step 3 - Shipping Methods (Card-style Layout)
+   ========================================================================== */
+
+/* Break shipping out of table constraints */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table tfoot .woocommerce-shipping-totals th {
+	padding-bottom: 8px;
+	font-weight: 600;
+	color: var(--awana-text);
+}
+
+/* Shipping methods list */
+.awana-wc-payment-container .woocommerce-shipping-methods {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.awana-wc-payment-container .woocommerce-shipping-methods li {
+	position: relative;
+	padding: 16px 20px;
+	margin-bottom: 12px;
+	background: var(--awana-bg);
+	border: 2px solid var(--awana-border);
+	border-radius: var(--awana-radius-sm);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.awana-wc-payment-container .woocommerce-shipping-methods li:last-child {
+	margin-bottom: 0;
+}
+
+.awana-wc-payment-container .woocommerce-shipping-methods li:hover {
+	border-color: #c5c9ce;
+}
+
+/* Selected shipping option - orange accent bar */
+.awana-wc-payment-container .woocommerce-shipping-methods li:has(input:checked) {
+	border-color: var(--awana-dark);
+	background: #fafbfc;
+	border-left: 4px solid var(--awana-primary);
+	padding-left: 18px;
+}
+
+.awana-wc-payment-container .woocommerce-shipping-methods li label {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-weight: 600;
+	color: var(--awana-text);
+	cursor: pointer;
+	margin: 0;
+}
+
+.awana-wc-payment-container .woocommerce-shipping-methods li input[type="radio"] {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--awana-primary);
+	cursor: pointer;
+}
+
+/* Bring Frakt specific styling */
+.awana-wc-payment-container .bring-fraktguiden-selected-option {
+	margin-top: 16px;
+	padding: 16px;
+	background: var(--awana-bg-subtle);
+	border-radius: var(--awana-radius-sm);
+	border: 1px solid var(--awana-border);
+}
+
+.awana-wc-payment-container .bring-fraktguiden-selected-option img {
+	max-height: 24px;
+	width: auto;
+	margin-bottom: 8px;
+}
+
+.awana-wc-payment-container .bring-fraktguiden-selected-option .shipping-name {
+	font-weight: 600;
+	color: var(--awana-text);
+	margin-bottom: 4px;
+}
+
+.awana-wc-payment-container .bring-fraktguiden-selected-option .delivery-date,
+.awana-wc-payment-container .bring-fraktguiden-selected-option .expected-delivery {
+	font-size: 13px;
+	color: var(--awana-text-muted);
+}
+
+.awana-wc-payment-container .bring-fraktguiden-selected-option a {
+	display: inline-block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: var(--awana-primary);
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.awana-wc-payment-container .bring-fraktguiden-selected-option a:hover {
+	text-decoration: underline;
+	color: var(--awana-primary-hover);
+}
+
+/* Shipping row in table - better spacing */
+.awana-wc-payment-container .woocommerce-checkout-review-order-table .woocommerce-shipping-totals td {
+	padding: 16px 20px 20px;
+}
+
+/* ==========================================================================
+   Step 3 - Payment Methods (Clear Selection States)
+   ========================================================================== */
+
 .awana-wc-payment-container .wc_payment_methods {
 	list-style: none;
 	padding: 0;
@@ -703,22 +866,32 @@
 }
 
 .awana-wc-payment-container .wc_payment_method {
+	position: relative;
 	padding: 18px 20px;
-	border: 2px solid var(--awana-border);
+	border: 2px solid #d1d5db;
 	border-radius: var(--awana-radius-sm);
 	margin-bottom: 12px;
+	background: var(--awana-bg);
 	transition: all 0.2s ease;
 	cursor: pointer;
 }
 
-.awana-wc-payment-container .wc_payment_method:hover {
-	border-color: var(--awana-dark);
+.awana-wc-payment-container .wc_payment_method:last-child {
+	margin-bottom: 0;
 }
 
+/* Hover state */
+.awana-wc-payment-container .wc_payment_method:hover {
+	border-color: #9ca3af;
+}
+
+/* Selected payment method - orange accent bar */
 .awana-wc-payment-container .wc_payment_method.payment_method_active,
 .awana-wc-payment-container .wc_payment_method:has(input:checked) {
 	border-color: var(--awana-dark);
-	background: #f8f9fa;
+	background: #fafbfc;
+	border-left: 4px solid var(--awana-primary);
+	padding-left: 18px;
 }
 
 .awana-wc-payment-container .wc_payment_method label {
@@ -728,15 +901,50 @@
 	font-weight: 600;
 	color: var(--awana-text);
 	cursor: pointer;
+	margin: 0;
 }
 
+.awana-wc-payment-container .wc_payment_method label img {
+	max-height: 28px;
+	width: auto;
+}
+
+.awana-wc-payment-container .wc_payment_method input[type="radio"] {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--awana-primary);
+	cursor: pointer;
+}
+
+/* Payment description box */
 .awana-wc-payment-container .wc_payment_method .payment_box {
-	margin-top: 14px;
-	padding-top: 14px;
-	border-top: 1px solid var(--awana-border);
+	margin-top: 16px;
+	padding: 16px;
+	background: var(--awana-bg-subtle);
+	border-radius: var(--awana-radius-sm);
+	border: 1px solid var(--awana-border);
 	font-size: 14px;
 	color: var(--awana-text-muted);
 	line-height: 1.6;
+}
+
+.awana-wc-payment-container .wc_payment_method .payment_box p {
+	margin: 0;
+}
+
+.awana-wc-payment-container .wc_payment_method .payment_box p + p {
+	margin-top: 10px;
+}
+
+/* Payment icons row (Visa, Mastercard, etc.) */
+.awana-wc-payment-container .wc_payment_method .payment_box img,
+.awana-wc-payment-container .wc_payment_method .payment_box .payment-method-icons img {
+	display: inline-block;
+	max-height: 24px;
+	width: auto;
+	margin-right: 8px;
+	margin-bottom: 8px;
+	vertical-align: middle;
 }
 
 /* Place order button */
@@ -793,6 +1001,12 @@ body.awana-wizard-active .checkout .col-2 {
 .awana-wc-payment-container #payment,
 .awana-wc-payment-container .woocommerce-checkout-review-order {
 	display: block !important;
+}
+
+/* Hide redundant WooCommerce "Your order" heading when wizard is active */
+body.awana-wizard-active #order_review_heading,
+body.awana-wizard-active form.checkout > h3#order_review_heading {
+	display: none !important;
 }
 
 /* ==========================================================================
@@ -935,6 +1149,64 @@ body.awana-wizard-active .checkout .col-2 {
 	.awana-wc-fields-container .woocommerce-billing-fields__field-wrapper .form-row-first,
 	.awana-wc-fields-container .woocommerce-billing-fields__field-wrapper .form-row-last {
 		grid-column: 1;
+	}
+
+	/* Mobile Step 3 - Order Review Table */
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table th,
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table td {
+		padding: 12px 14px;
+	}
+
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table thead th {
+		padding: 10px 14px;
+		font-size: 10px;
+	}
+
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total th,
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total td {
+		padding: 14px;
+		font-size: 16px;
+	}
+
+	.awana-wc-payment-container .woocommerce-checkout-review-order-table .order-total td {
+		font-size: 18px;
+	}
+
+	/* Mobile Step 3 - Shipping Methods */
+	.awana-wc-payment-container .woocommerce-shipping-methods li {
+		padding: 14px 16px;
+	}
+
+	.awana-wc-payment-container .woocommerce-shipping-methods li:has(input:checked) {
+		padding-left: 14px;
+	}
+
+	.awana-wc-payment-container .bring-fraktguiden-selected-option {
+		padding: 12px;
+		margin-top: 12px;
+	}
+
+	/* Mobile Step 3 - Payment Methods */
+	.awana-wc-payment-container .wc_payment_method {
+		padding: 14px 16px;
+	}
+
+	.awana-wc-payment-container .wc_payment_method:has(input:checked) {
+		padding-left: 14px;
+	}
+
+	.awana-wc-payment-container .wc_payment_method .payment_box {
+		padding: 12px;
+		margin-top: 12px;
+	}
+
+	.awana-wc-payment-container .wc_payment_method label {
+		gap: 10px;
+		font-size: 14px;
+	}
+
+	.awana-wc-payment-container .wc_payment_method label img {
+		max-height: 22px;
 	}
 }
 
