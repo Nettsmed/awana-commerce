@@ -24,6 +24,13 @@ class Awana_Checkout_Org {
 	const META_POG_CUSTOMER  = '_pog_customer_id';
 
 	/**
+	 * Track if org info has been rendered to prevent duplicates.
+	 *
+	 * @var bool
+	 */
+	private static $org_info_rendered = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -280,6 +287,7 @@ class Awana_Checkout_Org {
 			return;
 		}
 
+		self::$org_info_rendered = true;
 		$this->output_org_info( $order );
 	}
 
@@ -290,7 +298,7 @@ class Awana_Checkout_Org {
 	 */
 	public function display_org_info_in_order( $order ) {
 		// Only show if meta box isn't rendering (fallback for some themes).
-		if ( did_action( 'add_meta_boxes' ) && doing_action( 'woocommerce_admin_order_data_after_billing_address' ) ) {
+		if ( ! self::$org_info_rendered && doing_action( 'woocommerce_admin_order_data_after_billing_address' ) ) {
 			// Meta box should handle display, but output inline if needed.
 			// Check if we have org data.
 			$payment_type = $order->get_meta( self::META_PAYMENT_TYPE );

@@ -157,6 +157,11 @@
 				this.setFieldValue('billing_address_1', org.billingAddress.street || '');
 				this.setFieldValue('billing_postcode', org.billingAddress.postalCode || '');
 				this.setFieldValue('billing_city', org.billingAddress.city || '');
+			} else {
+				// Clear address fields if organization lacks billing address
+				this.setFieldValue('billing_address_1', '');
+				this.setFieldValue('billing_postcode', '');
+				this.setFieldValue('billing_city', '');
 			}
 
 			// Contact fields
