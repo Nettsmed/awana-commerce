@@ -1,0 +1,170 @@
+/**
+ * Checkout organization selector styles.
+ *
+ * @package Awana_Digital_Sync
+ */
+
+/* "Hvem handler?" section */
+.awana-payment-type-wrapper {
+	margin-bottom: 20px;
+	padding: 15px;
+	background: #f8f9fa;
+	border: 1px solid #e1e1e1;
+	border-radius: 4px;
+}
+
+.awana-payment-type-wrapper .form-row {
+	margin-bottom: 0;
+}
+
+.awana-payment-type-wrapper label.awana-payment-type-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 10px;
+	font-size: 1em;
+}
+
+/* Radio button styling */
+.awana-payment-type-options {
+	display: flex;
+	gap: 20px;
+	flex-wrap: wrap;
+}
+
+.awana-payment-type-option {
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: 8px 16px;
+	border: 2px solid #ddd;
+	border-radius: 4px;
+	transition: all 0.2s ease;
+	background: #fff;
+}
+
+.awana-payment-type-option:hover {
+	border-color: #0073aa;
+}
+
+.awana-payment-type-option.selected {
+	border-color: #0073aa;
+	background: #f0f6fc;
+}
+
+.awana-payment-type-option input[type="radio"] {
+	margin-right: 8px;
+}
+
+.awana-payment-type-option span {
+	font-weight: 500;
+}
+
+/* Organization dropdown wrapper */
+.awana-org-dropdown-wrapper {
+	margin-top: 15px;
+	padding-top: 15px;
+	border-top: 1px solid #e1e1e1;
+	display: none;
+}
+
+.awana-org-dropdown-wrapper.visible {
+	display: block;
+	animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.awana-org-dropdown-wrapper label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.awana-org-dropdown-wrapper select {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 1em;
+	background: #fff;
+}
+
+.awana-org-dropdown-wrapper select:focus {
+	border-color: #0073aa;
+	outline: none;
+	box-shadow: 0 0 0 1px #0073aa;
+}
+
+/* Admin meta box styles */
+.awana-org-meta-box {
+	padding: 10px 0;
+}
+
+.awana-org-meta-box p {
+	margin: 8px 0;
+	padding: 0;
+}
+
+.awana-org-meta-box strong {
+	display: inline-block;
+	min-width: 140px;
+	color: #23282d;
+}
+
+.awana-org-meta-box .awana-payment-type-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.awana-org-meta-box .awana-payment-type-badge.private {
+	background: #e5e5e5;
+	color: #555;
+}
+
+.awana-org-meta-box .awana-payment-type-badge.organization {
+	background: #0073aa;
+	color: #fff;
+}
+
+.awana-org-meta-box hr {
+	margin: 15px 0;
+	border: none;
+	border-top: 1px solid #e1e1e1;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 480px) {
+	.awana-payment-type-options {
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.awana-payment-type-option {
+		justify-content: center;
+	}
+}
+
+/* WooCommerce compatibility */
+.woocommerce-checkout .awana-payment-type-wrapper {
+	clear: both;
+}
+
+.woocommerce-checkout .awana-payment-type-wrapper::before,
+.woocommerce-checkout .awana-payment-type-wrapper::after {
+	content: '';
+	display: table;
+	clear: both;
+}
