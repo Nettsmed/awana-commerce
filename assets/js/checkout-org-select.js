@@ -129,6 +129,9 @@
 
 				// Insert before the navigation
 				$step2Box.find('.awana-step-nav').before($billingContainer);
+
+				// Re-initialize selectWoo on cloned country/state dropdowns
+				this.reinitializeSelectWoo($billingContainer);
 			}
 
 			// Move payment and order review to step 3
@@ -144,6 +147,75 @@
 
 			// Sync field values between original and cloned fields
 			this.setupFieldSync();
+		},
+
+		/**
+		 * Refresh the cloned order review section with updated content from WooCommerce.
+		 */
+		refreshOrderReview: function() {
+			var $step3Box = this.$wizard.find('[data-step="3"] .awana-step-box');
+			var $paymentContainer = $step3Box.find('.awana-wc-payment-container');
+
+			if ($paymentContainer.length && this.$orderReview.length) {
+				// Store which payment method was selected in the clone before refresh
+				var $selectedPayment = $paymentContainer.find('input[type="radio"]:checked');
+				var selectedPaymentName = $selectedPayment.attr('name');
+				var selectedPaymentValue = $selectedPayment.val();
+
+				// Remove old clone
+				$paymentContainer.empty();
+
+				// Clone fresh order review
+				$paymentContainer.append(this.$orderReview.clone(true, true));
+
+				// Restore payment method selection if one was previously selected
+				if (selectedPaymentName && selectedPaymentValue) {
+					var $newPayment = $paymentContainer.find('input[name="' + selectedPaymentName + '"][value="' + selectedPaymentValue + '"]');
+					if ($newPayment.length) {
+						$newPayment.prop('checked', true);
+						// Sync to original
+						var $original = $('form.checkout').find('input[name="' + selectedPaymentName + '"][value="' + selectedPaymentValue + '"]').not(this.$wizard.find('input'));
+						if ($original.length) {
+							$original.prop('checked', true).trigger('change');
+						}
+					}
+				}
+
+				// Re-setup field sync for the new clone
+				this.setupFieldSync();
+			}
+		},
+
+		/**
+		 * Re-initialize selectWoo on cloned country/state dropdowns.
+		 *
+		 * @param {jQuery} $container - Container with cloned fields
+		 */
+		reinitializeSelectWoo: function($container) {
+			// Find cloned country and state selects
+			var $countrySelect = $container.find('select#billing_country, select[name="billing_country"]');
+			var $stateSelect = $container.find('select#billing_state, select[name="billing_state"]');
+
+			// Re-initialize selectWoo if available
+			if (typeof $.fn.selectWoo !== 'undefined') {
+				if ($countrySelect.length) {
+					// Destroy any existing selectWoo instance
+					if ($countrySelect.data('selectWoo')) {
+						$countrySelect.selectWoo('destroy');
+					}
+					// Re-initialize
+					$countrySelect.selectWoo();
+				}
+
+				if ($stateSelect.length) {
+					// Destroy any existing selectWoo instance
+					if ($stateSelect.data('selectWoo')) {
+						$stateSelect.selectWoo('destroy');
+					}
+					// Re-initialize
+					$stateSelect.selectWoo();
+				}
+			}
 		},
 
 		/**
@@ -176,7 +248,16 @@
 				if (name) {
 					var $original = $('form.checkout').find('input[name="' + name + '"][value="' + value + '"]').not(self.$wizard.find('input'));
 					if ($original.length) {
+						// Temporarily change cloned radio name to prevent browser from unchecking it
+						// when we check the original (they would be in the same radio group)
+						var originalName = $this.attr('name');
+						$this.attr('name', originalName + '_clone_temp');
 						$original.prop('checked', true).trigger('change');
+						// Restore the name after sync completes using requestAnimationFrame
+						// This ensures the browser has processed the radio group change
+						requestAnimationFrame(function() {
+							$this.attr('name', originalName);
+						});
 					}
 				}
 			});
@@ -236,6 +317,8 @@
 				}
 				// Re-sync cloned fields with originals after checkout update
 				self.syncFieldsFromOriginals();
+				// Refresh cloned order review to show updated totals
+				self.refreshOrderReview();
 			});
 
 			// Handle WooCommerce validation errors
@@ -564,7 +647,7 @@
 				$step.removeClass('active completed');
 
 				if (stepNum < self.currentStep) {
-					$step.addClass('completed');
+					$step.addClass('completed').removeAttr('aria-current');
 				} else if (stepNum === self.currentStep) {
 					$step.addClass('active').attr('aria-current', 'step');
 				} else {
