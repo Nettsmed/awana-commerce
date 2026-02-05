@@ -83,7 +83,7 @@ class Awana_Checkout_Org {
 	}
 
 	/**
-	 * Render the payment type selector on checkout.
+	 * Render the 3-step checkout wizard.
 	 */
 	public function render_payment_type_selector() {
 		if ( ! is_user_logged_in() ) {
@@ -107,26 +107,125 @@ class Awana_Checkout_Org {
 		}
 
 		?>
-		<div class="awana-payment-type-wrapper">
-			<label class="awana-payment-type-label"><?php esc_html_e( 'Hvem handler?', 'awana-digital-sync' ); ?></label>
-			<div class="awana-payment-type-options">
-				<label class="awana-payment-type-option selected">
-					<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="private" checked="checked" />
-					<span><?php esc_html_e( 'Privat', 'awana-digital-sync' ); ?></span>
-				</label>
-				<label class="awana-payment-type-option">
-					<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="organization" />
-					<span><?php esc_html_e( 'Organisasjon', 'awana-digital-sync' ); ?></span>
-				</label>
+		<div class="awana-checkout-wizard">
+			<!-- Step Progress Indicator -->
+			<div class="awana-checkout-steps" role="navigation" aria-label="<?php esc_attr_e( 'Checkout progress', 'awana-digital-sync' ); ?>">
+				<div class="awana-step active" data-step="1" aria-current="step">
+					<span class="awana-step__number">1</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Kundetype', 'awana-digital-sync' ); ?></span>
+				</div>
+				<div class="awana-step__connector"></div>
+				<div class="awana-step" data-step="2">
+					<span class="awana-step__number">2</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Detaljer', 'awana-digital-sync' ); ?></span>
+				</div>
+				<div class="awana-step__connector"></div>
+				<div class="awana-step" data-step="3">
+					<span class="awana-step__number">3</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Betaling', 'awana-digital-sync' ); ?></span>
+				</div>
 			</div>
 
-			<div class="awana-org-dropdown-wrapper">
-				<label for="<?php echo esc_attr( self::FIELD_KEY ); ?>"><?php esc_html_e( 'Velg organisasjon', 'awana-digital-sync' ); ?></label>
-				<select name="<?php echo esc_attr( self::FIELD_KEY ); ?>" id="<?php echo esc_attr( self::FIELD_KEY ); ?>">
-					<?php foreach ( $options as $value => $label ) : ?>
-						<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
-					<?php endforeach; ?>
-				</select>
+			<!-- Step 1: Customer Type Selection -->
+			<div class="awana-step-content active" data-step="1">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Hvem handler?', 'awana-digital-sync' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Velg om du handler som privatperson eller på vegne av en bedrift', 'awana-digital-sync' ); ?></p>
+
+					<div class="awana-type-cards">
+						<div class="awana-type-card selected" data-type="private" role="button" tabindex="0" aria-pressed="true">
+							<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="private" checked="checked" class="screen-reader-text" />
+							<div class="awana-type-card__icon">
+								<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+									<circle cx="12" cy="7" r="4"></circle>
+								</svg>
+							</div>
+							<div class="awana-type-card__content">
+								<span class="awana-type-card__title"><?php esc_html_e( 'Privatperson', 'awana-digital-sync' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp som privatperson', 'awana-digital-sync' ); ?></span>
+							</div>
+						</div>
+
+						<div class="awana-type-card" data-type="organization" role="button" tabindex="0" aria-pressed="false">
+							<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="organization" class="screen-reader-text" />
+							<div class="awana-type-card__icon">
+								<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+									<polyline points="9 22 9 12 15 12 15 22"></polyline>
+								</svg>
+							</div>
+							<div class="awana-type-card__content">
+								<span class="awana-type-card__title"><?php esc_html_e( 'Bedrift', 'awana-digital-sync' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp på vegne av en organisasjon', 'awana-digital-sync' ); ?></span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Organization dropdown (shown when Bedrift selected) -->
+					<div class="awana-org-dropdown-wrapper">
+						<label for="<?php echo esc_attr( self::FIELD_KEY ); ?>"><?php esc_html_e( 'Velg organisasjon', 'awana-digital-sync' ); ?></label>
+						<select name="<?php echo esc_attr( self::FIELD_KEY ); ?>" id="<?php echo esc_attr( self::FIELD_KEY ); ?>">
+							<?php foreach ( $options as $value => $label ) : ?>
+								<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+
+					<!-- Step 1 Navigation -->
+					<div class="awana-step-nav awana-step-nav--end">
+						<button type="button" class="awana-btn awana-btn-continue" data-next-step="2">
+							<?php esc_html_e( 'Fortsett til detaljer', 'awana-digital-sync' ); ?>
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Step 2: Billing/Shipping Details -->
+			<div class="awana-step-content" data-step="2">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Fakturadetaljer', 'awana-digital-sync' ); ?></h3>
+					<p class="awana-step-subtitle awana-org-info-text" style="display: none;"></p>
+					<!-- WooCommerce billing/shipping fields will be moved here via JS -->
+
+					<!-- Step 2 Navigation -->
+					<div class="awana-step-nav">
+						<button type="button" class="awana-btn awana-btn-back" data-prev-step="1">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="15 18 9 12 15 6"></polyline>
+							</svg>
+							<?php esc_html_e( 'Tilbake', 'awana-digital-sync' ); ?>
+						</button>
+						<button type="button" class="awana-btn awana-btn-continue" data-next-step="3">
+							<?php esc_html_e( 'Fortsett til betaling', 'awana-digital-sync' ); ?>
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Step 3: Payment -->
+			<div class="awana-step-content" data-step="3">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Bestilling og betaling', 'awana-digital-sync' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Se over bestillingen og velg betalingsmåte', 'awana-digital-sync' ); ?></p>
+					<!-- WooCommerce payment methods and order review will be moved here via JS -->
+
+					<!-- Step 3 Navigation (back button only, place order is WooCommerce default) -->
+					<div class="awana-step-nav awana-step-nav--single">
+						<button type="button" class="awana-btn awana-btn-back" data-prev-step="2">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="15 18 9 12 15 6"></polyline>
+							</svg>
+							<?php esc_html_e( 'Tilbake', 'awana-digital-sync' ); ?>
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php
