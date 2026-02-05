@@ -151,9 +151,13 @@
 		 */
 		setupFieldSync: function() {
 			var self = this;
+			var $fieldsContainer = this.$wizard.find('.awana-wc-fields-container');
+
+			// Remove existing handlers to prevent accumulation
+			$fieldsContainer.off('change.awanaFieldSync keyup.awanaFieldSync');
 
 			// Billing fields sync
-			this.$wizard.find('.awana-wc-fields-container').on('change keyup', 'input, select, textarea', function() {
+			$fieldsContainer.on('change.awanaFieldSync keyup.awanaFieldSync', 'input, select, textarea', function() {
 				var $this = $(this);
 				var name = $this.attr('name');
 				var id = $this.attr('id');

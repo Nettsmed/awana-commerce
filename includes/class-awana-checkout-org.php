@@ -239,16 +239,18 @@ class Awana_Checkout_Org {
 			return;
 		}
 
-		$organizations = $this->get_user_organizations();
-		if ( empty( $organizations ) ) {
-			return;
-		}
-
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$payment_type = isset( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ) : 'private';
 
 		// Only validate org selection if payment type is organization.
 		if ( 'organization' !== $payment_type ) {
+			return;
+		}
+
+		$organizations = $this->get_user_organizations();
+		if ( empty( $organizations ) ) {
+			// User submitted organization payment type but has no organizations
+			wc_add_notice( __( 'Organisasjonsbetaling er ikke tilgjengelig. Velg privatperson.', 'awana-digital-sync' ), 'error' );
 			return;
 		}
 
