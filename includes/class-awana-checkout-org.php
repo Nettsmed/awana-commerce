@@ -300,6 +300,9 @@ class Awana_Checkout_Org {
 			if ( empty( $payment_type ) && empty( $org_id ) ) {
 				return;
 			}
+
+			// Output org info inline.
+			$this->output_org_info( $order );
 		}
 	}
 
