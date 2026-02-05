@@ -129,9 +129,6 @@
 
 				// Insert before the navigation
 				$step2Box.find('.awana-step-nav').before($billingContainer);
-
-				// Re-initialize selectWoo on cloned country/state dropdowns
-				this.reinitializeSelectWoo($billingContainer);
 			}
 
 			// Move payment and order review to step 3
@@ -147,75 +144,6 @@
 
 			// Sync field values between original and cloned fields
 			this.setupFieldSync();
-		},
-
-		/**
-		 * Refresh the cloned order review section with updated content from WooCommerce.
-		 */
-		refreshOrderReview: function() {
-			var $step3Box = this.$wizard.find('[data-step="3"] .awana-step-box');
-			var $paymentContainer = $step3Box.find('.awana-wc-payment-container');
-
-			if ($paymentContainer.length && this.$orderReview.length) {
-				// Store which payment method was selected in the clone before refresh
-				var $selectedPayment = $paymentContainer.find('input[type="radio"]:checked');
-				var selectedPaymentName = $selectedPayment.attr('name');
-				var selectedPaymentValue = $selectedPayment.val();
-
-				// Remove old clone
-				$paymentContainer.empty();
-
-				// Clone fresh order review
-				$paymentContainer.append(this.$orderReview.clone(true, true));
-
-				// Restore payment method selection if one was previously selected
-				if (selectedPaymentName && selectedPaymentValue) {
-					var $newPayment = $paymentContainer.find('input[name="' + selectedPaymentName + '"][value="' + selectedPaymentValue + '"]');
-					if ($newPayment.length) {
-						$newPayment.prop('checked', true);
-						// Sync to original
-						var $original = $('form.checkout').find('input[name="' + selectedPaymentName + '"][value="' + selectedPaymentValue + '"]').not(this.$wizard.find('input'));
-						if ($original.length) {
-							$original.prop('checked', true).trigger('change');
-						}
-					}
-				}
-
-				// Re-setup field sync for the new clone
-				this.setupFieldSync();
-			}
-		},
-
-		/**
-		 * Re-initialize selectWoo on cloned country/state dropdowns.
-		 *
-		 * @param {jQuery} $container - Container with cloned fields
-		 */
-		reinitializeSelectWoo: function($container) {
-			// Find cloned country and state selects
-			var $countrySelect = $container.find('select#billing_country, select[name="billing_country"]');
-			var $stateSelect = $container.find('select#billing_state, select[name="billing_state"]');
-
-			// Re-initialize selectWoo if available
-			if (typeof $.fn.selectWoo !== 'undefined') {
-				if ($countrySelect.length) {
-					// Destroy any existing selectWoo instance
-					if ($countrySelect.data('selectWoo')) {
-						$countrySelect.selectWoo('destroy');
-					}
-					// Re-initialize
-					$countrySelect.selectWoo();
-				}
-
-				if ($stateSelect.length) {
-					// Destroy any existing selectWoo instance
-					if ($stateSelect.data('selectWoo')) {
-						$stateSelect.selectWoo('destroy');
-					}
-					// Re-initialize
-					$stateSelect.selectWoo();
-				}
-			}
 		},
 
 		/**
@@ -239,26 +167,310 @@
 				}
 			});
 
-			// Payment methods sync
-			this.$wizard.find('.awana-wc-payment-container').on('change', 'input[type="radio"]', function() {
-				var $this = $(this);
-				var name = $this.attr('name');
-				var value = $this.val();
+			// Fix cloned radio buttons - give them unique IDs and set up click handlers
+			this.setupPaymentMethodSync();
+			this.setupShippingMethodSync();
+		},
 
-				if (name) {
-					var $original = $('form.checkout').find('input[name="' + name + '"][value="' + value + '"]').not(self.$wizard.find('input'));
-					if ($original.length) {
-						// Temporarily change cloned radio name to prevent browser from unchecking it
-						// when we check the original (they would be in the same radio group)
-						var originalName = $this.attr('name');
-						$this.attr('name', originalName + '_clone_temp');
-						$original.prop('checked', true).trigger('change');
-						// Restore the name after sync completes using requestAnimationFrame
-						// This ensures the browser has processed the radio group change
-						requestAnimationFrame(function() {
-							$this.attr('name', originalName);
-						});
+		/**
+		 * Setup payment method selection sync.
+		 * Fixes duplicate ID issues with cloned radio buttons.
+		 */
+		setupPaymentMethodSync: function() {
+			var self = this;
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			if (!$paymentContainer.length) {
+				return;
+			}
+
+			// Rename IDs and setup handlers with slight delay to ensure DOM is ready
+			setTimeout(function() {
+				self.renamePaymentRadioIds();
+				self.attachPaymentClickHandlers();
+				self.syncPaymentFromOriginal();
+			}, 100);
+		},
+
+		/**
+		 * Rename payment radio IDs and names to avoid duplicates with original form.
+		 */
+		renamePaymentRadioIds: function() {
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			$paymentContainer.find('input[type="radio"][name="payment_method"]').each(function() {
+				var $radio = $(this);
+				var originalId = $radio.attr('id');
+
+				// Rename ID
+				if (originalId && originalId.indexOf('awana_') !== 0) {
+					var newId = 'awana_' + originalId;
+					$radio.attr('id', newId);
+
+					// Update associated label
+					var $label = $paymentContainer.find('label[for="' + originalId + '"]');
+					if ($label.length) {
+						$label.attr('for', newId);
 					}
+				}
+
+				// Rename name attribute to prevent browser radio group conflicts
+				$radio.attr('name', 'awana_payment_method');
+			});
+		},
+
+		/**
+		 * Attach click handlers to payment methods in wizard.
+		 */
+		attachPaymentClickHandlers: function() {
+			var self = this;
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Direct click on list items - use native event listener for reliability
+			$paymentContainer.find('.wc_payment_method').each(function() {
+				var $method = $(this);
+
+				// Remove any existing handlers to prevent duplicates
+				$method.off('click.awanaPayment');
+
+				// Attach new handler
+				$method.on('click.awanaPayment', function(e) {
+					// Don't handle if clicking directly on a link
+					if ($(e.target).is('a')) {
+						return;
+					}
+
+					e.preventDefault();
+					e.stopPropagation();
+
+					var $radio = $method.find('input[type="radio"]');
+					if ($radio.length && !$radio.prop('disabled')) {
+						self.selectPaymentMethod($method, $radio);
+					}
+				});
+			});
+
+			// Also handle direct clicks on radios (use new name after renaming)
+			$paymentContainer.find('input[type="radio"][name="awana_payment_method"]').each(function() {
+				var $radio = $(this);
+				$radio.off('change.awanaPayment click.awanaPayment');
+
+				$radio.on('change.awanaPayment click.awanaPayment', function(e) {
+					e.stopPropagation();
+					var $method = $radio.closest('.wc_payment_method');
+					self.selectPaymentMethod($method, $radio);
+				});
+			});
+		},
+
+		/**
+		 * Select a payment method in the wizard.
+		 */
+		selectPaymentMethod: function($method, $radio) {
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Check the radio (use the renamed name attribute)
+			$paymentContainer.find('input[type="radio"][name="awana_payment_method"]').prop('checked', false);
+			$radio.prop('checked', true);
+
+			// Update visual state
+			$paymentContainer.find('.wc_payment_method').removeClass('payment_method_active');
+			$method.addClass('payment_method_active');
+
+			// Show/hide payment box
+			$paymentContainer.find('.payment_box').hide();
+			$method.find('.payment_box').show();
+
+			// Sync to original WooCommerce form
+			this.syncPaymentToOriginal($radio.val());
+		},
+
+		/**
+		 * Sync payment method selection to original WooCommerce form.
+		 */
+		syncPaymentToOriginal: function(value) {
+			// Find original radios (not inside our wizard)
+			var $originalRadio = $('form.checkout').find('input[name="payment_method"][value="' + value + '"]').filter(function() {
+				return !$(this).closest('.awana-wc-payment-container').length;
+			});
+
+			if ($originalRadio.length) {
+				$originalRadio.prop('checked', true).trigger('click').trigger('change');
+			}
+		},
+
+		/**
+		 * Sync payment method selection from original WooCommerce form to wizard.
+		 */
+		syncPaymentFromOriginal: function() {
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Find checked original radio
+			var $checkedOriginal = $('form.checkout').find('input[name="payment_method"]:checked').filter(function() {
+				return !$(this).closest('.awana-wc-payment-container').length;
+			});
+
+			if ($checkedOriginal.length) {
+				var value = $checkedOriginal.val();
+				// Use the renamed name attribute for wizard radios
+				var $clonedRadio = $paymentContainer.find('input[name="awana_payment_method"][value="' + value + '"]');
+
+				if ($clonedRadio.length) {
+					$paymentContainer.find('input[name="awana_payment_method"]').prop('checked', false);
+					$clonedRadio.prop('checked', true);
+
+					$paymentContainer.find('.wc_payment_method').removeClass('payment_method_active');
+					$clonedRadio.closest('.wc_payment_method').addClass('payment_method_active');
+
+					$paymentContainer.find('.payment_box').hide();
+					$clonedRadio.closest('.wc_payment_method').find('.payment_box').show();
+				}
+			} else {
+				// No original selected, select first one
+				var $firstRadio = $paymentContainer.find('input[name="awana_payment_method"]').first();
+				if ($firstRadio.length) {
+					$firstRadio.prop('checked', true);
+					$firstRadio.closest('.wc_payment_method').addClass('payment_method_active');
+					$firstRadio.closest('.wc_payment_method').find('.payment_box').show();
+					this.syncPaymentToOriginal($firstRadio.val());
+				}
+			}
+		},
+
+		/**
+		 * Setup shipping method selection sync.
+		 */
+		setupShippingMethodSync: function() {
+			var self = this;
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Setup with slight delay to ensure DOM is ready
+			setTimeout(function() {
+				self.renameShippingRadioIds();
+				self.attachShippingClickHandlers();
+				self.syncShippingFromOriginal();
+			}, 100);
+		},
+
+		/**
+		 * Rename shipping radio IDs and names to avoid duplicates.
+		 */
+		renameShippingRadioIds: function() {
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			$paymentContainer.find('input[type="radio"][name^="shipping_method"]').each(function() {
+				var $radio = $(this);
+				var originalId = $radio.attr('id');
+				var originalName = $radio.attr('name');
+
+				// Rename ID
+				if (originalId && originalId.indexOf('awana_') !== 0) {
+					var newId = 'awana_' + originalId;
+					$radio.attr('id', newId);
+
+					var $label = $paymentContainer.find('label[for="' + originalId + '"]');
+					if ($label.length) {
+						$label.attr('for', newId);
+					}
+				}
+
+				// Rename name attribute to prevent browser radio group conflicts
+				// Store original name as data attribute for syncing
+				if (originalName && originalName.indexOf('awana_') !== 0) {
+					$radio.data('original-name', originalName);
+					$radio.attr('name', 'awana_' + originalName);
+				}
+			});
+		},
+
+		/**
+		 * Attach click handlers to shipping methods in wizard.
+		 */
+		attachShippingClickHandlers: function() {
+			var self = this;
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Handle clicks on shipping method rows
+			$paymentContainer.find('.woocommerce-shipping-methods li').each(function() {
+				var $li = $(this);
+				$li.off('click.awanaShipping');
+
+				$li.on('click.awanaShipping', function(e) {
+					if ($(e.target).is('a')) return;
+
+					e.preventDefault();
+					e.stopPropagation();
+
+					var $radio = $li.find('input[type="radio"]');
+					if ($radio.length && !$radio.prop('disabled')) {
+						self.selectShippingMethod($radio);
+					}
+				});
+			});
+
+			// Handle direct clicks on radios (use the renamed name pattern)
+			$paymentContainer.find('input[type="radio"][name^="awana_shipping_method"]').each(function() {
+				var $radio = $(this);
+				$radio.off('change.awanaShipping click.awanaShipping');
+
+				$radio.on('change.awanaShipping click.awanaShipping', function(e) {
+					e.stopPropagation();
+					self.selectShippingMethod($radio);
+				});
+			});
+		},
+
+		/**
+		 * Select a shipping method in the wizard.
+		 */
+		selectShippingMethod: function($radio) {
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+			var name = $radio.attr('name');
+			var originalName = $radio.data('original-name') || name.replace('awana_', '');
+
+			// Check the radio
+			$paymentContainer.find('input[name="' + name + '"]').prop('checked', false);
+			$radio.prop('checked', true);
+
+			// Sync to original WooCommerce form using the original name
+			this.syncShippingToOriginal(originalName, $radio.val());
+		},
+
+		/**
+		 * Sync shipping method selection to original WooCommerce form.
+		 */
+		syncShippingToOriginal: function(name, value) {
+			var $originalRadio = $('form.checkout').find('input[name="' + name + '"][value="' + value + '"]').filter(function() {
+				return !$(this).closest('.awana-wc-payment-container').length;
+			});
+
+			if ($originalRadio.length) {
+				$originalRadio.prop('checked', true).trigger('change');
+				$(document.body).trigger('update_checkout');
+			}
+		},
+
+		/**
+		 * Sync shipping method selection from original WooCommerce form to wizard.
+		 */
+		syncShippingFromOriginal: function() {
+			var self = this;
+			var $paymentContainer = this.$wizard.find('.awana-wc-payment-container');
+
+			// Find all shipping method groups from original form
+			$('form.checkout').find('input[type="radio"][name^="shipping_method"]:checked').filter(function() {
+				return !$(this).closest('.awana-wc-payment-container').length;
+			}).each(function() {
+				var $original = $(this);
+				var originalName = $original.attr('name');
+				var value = $original.val();
+
+				// Find cloned radio using the renamed name (awana_ prefix)
+				var renamedName = 'awana_' + originalName;
+				var $clonedRadio = $paymentContainer.find('input[name="' + renamedName + '"][value="' + value + '"]');
+				if ($clonedRadio.length) {
+					$paymentContainer.find('input[name="' + renamedName + '"]').prop('checked', false);
+					$clonedRadio.prop('checked', true);
 				}
 			});
 		},
@@ -317,8 +529,6 @@
 				}
 				// Re-sync cloned fields with originals after checkout update
 				self.syncFieldsFromOriginals();
-				// Refresh cloned order review to show updated totals
-				self.refreshOrderReview();
 			});
 
 			// Handle WooCommerce validation errors
@@ -647,7 +857,7 @@
 				$step.removeClass('active completed');
 
 				if (stepNum < self.currentStep) {
-					$step.addClass('completed').removeAttr('aria-current');
+					$step.addClass('completed');
 				} else if (stepNum === self.currentStep) {
 					$step.addClass('active').attr('aria-current', 'step');
 				} else {
@@ -688,7 +898,17 @@
 			}
 
 			if (step === 3) {
-				// Sync payment section
+				// Re-rename IDs and re-attach handlers in case WooCommerce re-rendered
+				this.renamePaymentRadioIds();
+				this.renameShippingRadioIds();
+				this.attachPaymentClickHandlers();
+				this.attachShippingClickHandlers();
+
+				// Sync payment and shipping methods from original
+				this.syncPaymentFromOriginal();
+				this.syncShippingFromOriginal();
+
+				// Trigger WooCommerce checkout update
 				$(document.body).trigger('update_checkout');
 			}
 		},
