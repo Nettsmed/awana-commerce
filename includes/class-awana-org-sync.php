@@ -1,6 +1,6 @@
 <?php
 /**
- * Firebase organization sync on login
+ * Firebase organization sync with TTL-based refresh
  *
  * @package Awana_Digital_Sync
  */
@@ -15,33 +15,107 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Awana_Org_Sync {
 
 	/**
+	 * TTL for organization sync in seconds (4 hours)
+	 */
+	const TTL_SECONDS = 14400;
+
+	/**
 	 * Initialize hooks
 	 */
 	public static function init() {
-		$instance = new self();
-		add_action( 'mo_firebase_auth_after_login', array( $instance, 'sync_user_organizations' ), 10, 3 );
+		// Login sync.
+		add_action( 'mo_firebase_auth_after_login', array( __CLASS__, 'on_firebase_login' ), 10, 3 );
+
+		// TTL-based sync on cart and checkout pages.
+		add_action( 'woocommerce_before_cart', array( __CLASS__, 'maybe_sync_on_page' ) );
+		add_action( 'woocommerce_before_checkout_form', array( __CLASS__, 'maybe_sync_on_page' ) );
 	}
 
 	/**
-	 * Sync user organizations from Firebase to user meta on login.
+	 * Check if a sync should occur based on TTL.
+	 *
+	 * @param int      $user_id     WordPress user ID.
+	 * @param int|null $ttl_seconds TTL in seconds, defaults to self::TTL_SECONDS.
+	 * @return bool True if sync should occur.
+	 */
+	public static function should_sync( $user_id, $ttl_seconds = null ) {
+		if ( null === $ttl_seconds ) {
+			$ttl_seconds = self::TTL_SECONDS;
+		}
+
+		$last_sync = get_user_meta( $user_id, '_awana_orgs_last_sync', true );
+
+		if ( empty( $last_sync ) ) {
+			return true;
+		}
+
+		return ( time() - intval( $last_sync ) ) > $ttl_seconds;
+	}
+
+	/**
+	 * Maybe sync organizations on cart/checkout pages if TTL expired.
+	 */
+	public static function maybe_sync_on_page() {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		$user_id = get_current_user_id();
+
+		if ( ! self::should_sync( $user_id ) ) {
+			return;
+		}
+
+		$firebase_uid = get_user_meta( $user_id, 'mo_firebase_user_uid', true );
+
+		if ( empty( $firebase_uid ) ) {
+			return;
+		}
+
+		self::sync_organizations( $user_id, $firebase_uid );
+	}
+
+	/**
+	 * Handle Firebase login hook.
 	 *
 	 * @param mixed $user_or_id   WP_User, user ID, or array with ID.
 	 * @param mixed $firebase_user Firebase user object/array.
 	 * @param mixed $extra        Extra data from the hook.
 	 */
-	public function sync_user_organizations( $user_or_id = null, $firebase_user = null, $extra = null ) {
-		$user_id = $this->resolve_user_id( $user_or_id );
-		$uid     = $this->resolve_firebase_uid( $firebase_user, $extra );
+	public static function on_firebase_login( $user_or_id = null, $firebase_user = null, $extra = null ) {
+		$user_id = self::resolve_user_id( $user_or_id );
 
-		if ( empty( $user_id ) || empty( $uid ) ) {
+		// Try to get Firebase UID from the hook args first, fallback to user meta.
+		$firebase_uid = self::resolve_firebase_uid( $firebase_user, $extra );
+
+		if ( empty( $firebase_uid ) && $user_id ) {
+			$firebase_uid = get_user_meta( $user_id, 'mo_firebase_user_uid', true );
+		}
+
+		if ( empty( $user_id ) || empty( $firebase_uid ) ) {
 			Awana_Logger::warning(
 				'Org sync skipped - missing user_id or Firebase uid',
 				array(
 					'user_id' => $user_id,
-					'uid'     => $uid,
+					'uid'     => $firebase_uid,
 				)
 			);
 			return;
+		}
+
+		self::sync_organizations( $user_id, $firebase_uid );
+	}
+
+	/**
+	 * Sync organizations from Firebase API.
+	 *
+	 * @param int    $user_id      WordPress user ID.
+	 * @param string $firebase_uid Firebase UID.
+	 * @return bool True on success, false on failure.
+	 */
+	public static function sync_organizations( $user_id, $firebase_uid ) {
+		if ( empty( $user_id ) || empty( $firebase_uid ) ) {
+			return false;
 		}
 
 		if ( ! defined( 'AWANA_FIREBASE_GET_ORGS_URL' ) || empty( AWANA_FIREBASE_GET_ORGS_URL ) ) {
@@ -49,7 +123,7 @@ class Awana_Org_Sync {
 				'AWANA_FIREBASE_GET_ORGS_URL not configured in wp-config.php',
 				array( 'user_id' => $user_id )
 			);
-			return;
+			return false;
 		}
 
 		if ( ! defined( 'AWANA_FIREBASE_API_KEY' ) || empty( AWANA_FIREBASE_API_KEY ) ) {
@@ -57,7 +131,7 @@ class Awana_Org_Sync {
 				'AWANA_FIREBASE_API_KEY not configured in wp-config.php',
 				array( 'user_id' => $user_id )
 			);
-			return;
+			return false;
 		}
 
 		$args = array(
@@ -69,7 +143,7 @@ class Awana_Org_Sync {
 			),
 			'body'    => wp_json_encode(
 				array(
-					'uid' => (string) $uid,
+					'uid' => (string) $firebase_uid,
 				)
 			),
 		);
@@ -81,11 +155,11 @@ class Awana_Org_Sync {
 				'Org sync failed - request error',
 				array(
 					'user_id' => $user_id,
-					'uid'     => $uid,
+					'uid'     => $firebase_uid,
 					'error'   => $response->get_error_message(),
 				)
 			);
-			return;
+			return false;
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
@@ -96,12 +170,12 @@ class Awana_Org_Sync {
 				'Org sync failed - non-2xx response',
 				array(
 					'user_id'     => $user_id,
-					'uid'         => $uid,
+					'uid'         => $firebase_uid,
 					'status_code' => $status_code,
 					'response'    => $body,
 				)
 			);
-			return;
+			return false;
 		}
 
 		$decoded = json_decode( $body, true );
@@ -110,24 +184,48 @@ class Awana_Org_Sync {
 				'Org sync failed - invalid JSON response',
 				array(
 					'user_id' => $user_id,
-					'uid'     => $uid,
+					'uid'     => $firebase_uid,
 					'error'   => json_last_error_msg(),
 				)
 			);
-			return;
+			return false;
 		}
 
 		update_user_meta( $user_id, '_awana_organizations', wp_json_encode( $decoded ) );
-		update_user_meta( $user_id, '_awana_orgs_last_sync', current_time( 'mysql' ) );
+		update_user_meta( $user_id, '_awana_orgs_last_sync', time() );
 
 		Awana_Logger::info(
 			'Org sync completed',
 			array(
 				'user_id'     => $user_id,
-				'uid'         => $uid,
+				'uid'         => $firebase_uid,
 				'status_code' => $status_code,
 			)
 		);
+
+		return true;
+	}
+
+	/**
+	 * Get user organizations from meta.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return array|null Decoded organizations array or null if not available.
+	 */
+	public static function get_user_organizations( $user_id ) {
+		$raw = get_user_meta( $user_id, '_awana_organizations', true );
+
+		if ( empty( $raw ) ) {
+			return null;
+		}
+
+		$decoded = json_decode( $raw, true );
+
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			return null;
+		}
+
+		return $decoded;
 	}
 
 	/**
@@ -136,7 +234,7 @@ class Awana_Org_Sync {
 	 * @param mixed $user_or_id User or ID.
 	 * @return int
 	 */
-	private function resolve_user_id( $user_or_id ) {
+	private static function resolve_user_id( $user_or_id ) {
 		if ( $user_or_id instanceof WP_User ) {
 			return (int) $user_or_id->ID;
 		}
@@ -164,7 +262,7 @@ class Awana_Org_Sync {
 	 * @param mixed $extra Extra data.
 	 * @return string
 	 */
-	private function resolve_firebase_uid( $firebase_user, $extra ) {
+	private static function resolve_firebase_uid( $firebase_user, $extra ) {
 		$uid = '';
 
 		if ( is_object( $firebase_user ) && isset( $firebase_user->uid ) ) {
@@ -184,4 +282,3 @@ class Awana_Org_Sync {
 		return $uid;
 	}
 }
-
