@@ -186,14 +186,14 @@ class Awana_Debug {
 				var $btn = $(this);
 				var $result = $('#awana-debug-firebase-result');
 				$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Fetching...', 'awana-digital-sync' ) ); ?>');
-				$result.html('Loading...');
+				$result.html('Loading...').show();
 
 				doAjax('awana_debug_fetch_firebase', {}, function(response) {
 					$btn.prop('disabled', false).text('<?php echo esc_js( __( 'Fetch from Firebase', 'awana-digital-sync' ) ); ?>');
 					if (response.success) {
-						$result.html(response.data.html);
+						$result.html(response.data.html).show();
 					} else {
-						$result.html('<span style="color:red;">' + response.data.message + '</span>');
+						$result.html('<span style="color:red;">Error: ' + (response.data ? response.data.message : 'Unknown error') + '</span>').show();
 					}
 				});
 			});
@@ -233,14 +233,14 @@ class Awana_Debug {
 				var $btn = $(this);
 				var $result = $('#awana-debug-compare-result');
 				$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Comparing...', 'awana-digital-sync' ) ); ?>');
-				$result.html('Loading...');
+				$result.html('Loading...').show();
 
 				doAjax('awana_debug_compare', {}, function(response) {
 					$btn.prop('disabled', false).text('<?php echo esc_js( __( 'Compare Firebase vs Cache', 'awana-digital-sync' ) ); ?>');
 					if (response.success) {
-						$result.html(response.data.html);
+						$result.html(response.data.html).show();
 					} else {
-						$result.html('<span style="color:red;">' + response.data.message + '</span>');
+						$result.html('<span style="color:red;">Error: ' + (response.data ? response.data.message : 'Unknown error') + '</span>').show();
 					}
 				});
 			});
@@ -250,14 +250,14 @@ class Awana_Debug {
 				var $btn = $(this);
 				var $result = $('#awana-debug-connection-result');
 				$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Testing...', 'awana-digital-sync' ) ); ?>');
-				$result.html('Loading...');
+				$result.html('Loading...').show();
 
 				doAjax('awana_debug_test_connection', {}, function(response) {
 					$btn.prop('disabled', false).text('<?php echo esc_js( __( 'Test Firebase Connection', 'awana-digital-sync' ) ); ?>');
 					if (response.success) {
-						$result.html(response.data.html);
+						$result.html(response.data.html).show();
 					} else {
-						$result.html('<span style="color:red;">' + response.data.message + '</span>');
+						$result.html('<span style="color:red;">Error: ' + (response.data ? response.data.message : 'Unknown error') + '</span>').show();
 					}
 				});
 			});
@@ -284,7 +284,7 @@ class Awana_Debug {
 				var $result = $('#awana-debug-checkout-result');
 
 				if (!orgData) {
-					$result.html('');
+					$result.html('').hide();
 					return;
 				}
 
@@ -298,9 +298,9 @@ class Awana_Debug {
 						html += '<p style="color: #155724;">✅ pogCustomerNumber: ' + org.pogCustomerNumber + '</p>';
 					}
 
-					$result.html(html);
+					$result.html(html).show();
 				} catch(e) {
-					$result.html('<span style="color:red;">Error parsing org data</span>');
+					$result.html('<span style="color:red;">Error parsing org data</span>').show();
 				}
 			});
 
@@ -311,7 +311,7 @@ class Awana_Debug {
 				var $result = $('#awana-debug-writeback-result');
 
 				if (!orgData) {
-					$result.html('<span style="color:red;">Please select an organization</span>');
+					$result.html('<span style="color:red;">Please select an organization</span>').show();
 					return;
 				}
 
@@ -327,9 +327,9 @@ class Awana_Debug {
 					html += '<pre>' + JSON.stringify(payload, null, 2) + '</pre>';
 					html += '<p><em>No actual request was made.</em></p>';
 
-					$result.html(html);
+					$result.html(html).show();
 				} catch(e) {
-					$result.html('<span style="color:red;">Error parsing org data</span>');
+					$result.html('<span style="color:red;">Error parsing org data</span>').show();
 				}
 			});
 
