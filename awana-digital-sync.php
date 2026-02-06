@@ -47,7 +47,9 @@ Awana_Checkout_Org::init();
 // Initialize admin UI only in admin context
 if ( is_admin() ) {
 	include_once 'includes/class-awana-admin.php';
+	include_once 'includes/class-awana-debug.php';
 	Awana_Admin::init();
+	Awana_Debug::init();
 }
 
 /**
