@@ -946,6 +946,7 @@
 
 			if ($billingErrors.length && this.currentStep !== 2) {
 				this.goToStep(2);
+				return;
 			}
 
 			// Check if errors are related to payment
