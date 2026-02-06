@@ -229,6 +229,12 @@ class Awana_Checkout_Org {
 			</div>
 		</div>
 		<?php
+		// Update JS org data after potential sync to ensure it matches the PHP-rendered dropdown.
+		wp_add_inline_script(
+			'awana-checkout-org-select',
+			'if (typeof awanaOrgData !== "undefined") { awanaOrgData.organizations = ' . wp_json_encode( $organizations ) . '; }',
+			'after'
+		);
 	}
 
 	/**

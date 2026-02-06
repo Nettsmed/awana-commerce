@@ -528,11 +528,11 @@
 
 			// Update original values after WooCommerce checkout updates
 			$(document.body).on('updated_checkout', function() {
+				// Re-sync cloned fields with originals after checkout update (before storing)
+				self.syncFieldsFromOriginals();
 				if (self.paymentType === 'private') {
 					self.storeOriginalValues();
 				}
-				// Re-sync cloned fields with originals after checkout update
-				self.syncFieldsFromOriginals();
 
 				// If on step 3, restore payment/shipping handlers and rename IDs
 				// (WooCommerce AJAX updates may replace DOM elements)
