@@ -149,10 +149,11 @@
 	content: '✓';
 	font-size: 20px;
 	font-weight: bold;
+	color: #fff;
 }
 
-.awana-step.completed .awana-step__number span {
-	display: none;
+.awana-step.completed .awana-step__number {
+	font-size: 0;
 }
 
 /* ==========================================================================

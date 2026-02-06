@@ -88,14 +88,17 @@
 		positionWizard: function() {
 			var self = this;
 
-			var recalculate = function() {
-				var wizardEl = self.$wizard[0];
-				var rect = wizardEl.getBoundingClientRect();
+		var recalculate = function() {
+			var wizardEl = self.$wizard[0];
+			// Reset margin-left to 0 before reading getBoundingClientRect
+			// to avoid contamination from previously applied margin
+			self.$wizard.css('margin-left', '0');
+			var rect = wizardEl.getBoundingClientRect();
 
-				// Calculate how much to offset to reach left edge of viewport
-				var offsetLeft = -rect.left;
-				self.$wizard.css('margin-left', offsetLeft + 'px');
-			};
+			// Calculate how much to offset to reach left edge of viewport
+			var offsetLeft = -rect.left;
+			self.$wizard.css('margin-left', offsetLeft + 'px');
+		};
 
 			// Calculate on init
 			recalculate();
