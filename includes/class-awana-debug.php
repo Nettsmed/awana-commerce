@@ -527,7 +527,7 @@ class Awana_Debug {
 						<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-digital-sync' ); ?></option>
 						<?php foreach ( $org_list as $org ) : ?>
 							<?php
-							$org_name = isset( $org['title'] ) ? $org['title'] : __( 'Unknown', 'awana-digital-sync' );
+							$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) );
 							$pog      = isset( $org['pogCustomerNumber'] ) ? $org['pogCustomerNumber'] : '';
 							$label    = $org_name . ( $pog ? ' (POG: ' . $pog . ')' : ' (no POG)' );
 							?>
@@ -551,7 +551,7 @@ class Awana_Debug {
 						<select id="awana-debug-writeback-org-select" style="min-width: 300px;">
 							<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-digital-sync' ); ?></option>
 							<?php foreach ( $org_list as $org ) : ?>
-								<?php $org_name = isset( $org['title'] ) ? $org['title'] : __( 'Unknown', 'awana-digital-sync' ); ?>
+								<?php $org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) ); ?>
 								<option value="<?php echo esc_attr( wp_json_encode( $org ) ); ?>"><?php echo esc_html( $org_name ); ?></option>
 							<?php endforeach; ?>
 						</select>
@@ -610,8 +610,10 @@ class Awana_Debug {
 		echo '<p>' . esc_html( sprintf( __( 'Found %d organization(s)', 'awana-digital-sync' ), count( $org_list ) ) ) . '</p>';
 
 		foreach ( $org_list as $org ) {
+			error_log( 'Awana Debug render_organizations org keys: ' . implode( ', ', array_keys( $org ) ) );
+			error_log( 'Awana Debug render_organizations title value: ' . var_export( $org['title'] ?? 'NOT SET', true ) );
 			$has_pog  = ! empty( $org['pogCustomerNumber'] );
-			$org_name = isset( $org['title'] ) ? $org['title'] : __( 'Unknown', 'awana-digital-sync' );
+			$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) );
 			?>
 			<div class="awana-debug-org-card <?php echo $has_pog ? 'has-pog' : 'no-pog'; ?>">
 				<strong><?php echo esc_html( $org_name ); ?></strong>
@@ -746,7 +748,7 @@ class Awana_Debug {
 			if ( $count > 0 ) {
 				foreach ( $org_list as $org ) {
 					$has_pog  = ! empty( $org['pogCustomerNumber'] );
-					$org_name = isset( $org['title'] ) ? $org['title'] : 'Unknown';
+					$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? 'Unknown' );
 					echo '<div style="padding:5px;margin:5px 0;background:' . ( $has_pog ? '#d4edda' : '#fff3cd' ) . ';">';
 					echo ( $has_pog ? '✅' : '⚠️' ) . ' ' . esc_html( $org_name );
 					if ( $has_pog ) {
@@ -787,6 +789,8 @@ class Awana_Debug {
 		$result = Awana_Org_Sync::sync_organizations( $user_id, $firebase_uid );
 
 		if ( $result ) {
+			$stored = get_user_meta( $user_id, '_awana_organizations', true );
+			error_log( 'Awana Debug: stored org data sample: ' . substr( $stored, 0, 200 ) );
 			wp_send_json_success( array( 'message' => __( 'Sync completed successfully.', 'awana-digital-sync' ) ) );
 		} else {
 			wp_send_json_error( array( 'message' => __( 'Sync failed. Check logs for details.', 'awana-digital-sync' ) ) );
