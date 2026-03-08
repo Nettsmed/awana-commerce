@@ -3,7 +3,7 @@
  * Plugin Name: Awana Digital Sync
  * Plugin URI: https://awana.no
  * Description: Syncs invoices from Digital/CRM to WooCommerce as guest orders and handles POG/Integrera sync updates.
- * Version: 1.1.2
+ * Version: 1.2.0
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
@@ -19,13 +19,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+// Load Composer autoloader (must be early, before any class usage)
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+	require_once __DIR__ . '/vendor/autoload.php';
+}
+
+// Initialize Sentry error monitoring
+if ( function_exists( '\\Sentry\\init' ) ) {
+	\Sentry\init( array(
+		'dsn'         => 'https://1b34e0ec5d03d25ce1f564716c42e4ef@o4508484236607488.ingest.de.sentry.io/4511009417330768',
+		'environment' => wp_get_environment_type() ?: 'production',
+		'release'     => 'woo-endpoint-awana@1.2.0',
+	) );
+}
+
 // Check if WooCommerce is active
 if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
 	return;
 }
 
 // Define plugin constants
-define( 'AWANA_DIGITAL_SYNC_VERSION', '1.1.2' );
+define( 'AWANA_DIGITAL_SYNC_VERSION', '1.2.0' );
 define( 'AWANA_DIGITAL_SYNC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AWANA_DIGITAL_SYNC_URL', plugin_dir_url( __FILE__ ) );
 

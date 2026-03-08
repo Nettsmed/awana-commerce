@@ -1,0 +1,12 @@
+{
+	"name": "nettsmed/woo-endpoint-awana",
+	"description": "Awana Digital Sync - WooCommerce plugin for CRM invoice sync",
+	"type": "wordpress-plugin",
+	"require": {
+		"php": ">=7.4",
+		"sentry/sentry": "^4.0"
+	},
+	"config": {
+		"optimize-autoloader": true
+	}
+}
