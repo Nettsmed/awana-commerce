@@ -3,7 +3,7 @@
 	"description": "Awana Digital Sync - WooCommerce plugin for CRM invoice sync",
 	"type": "wordpress-plugin",
 	"require": {
-		"php": ">=7.4",
+		"php": ">=8.1",
 		"sentry/sentry": "^4.0"
 	},
 	"config": {
