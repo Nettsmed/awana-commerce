@@ -7,6 +7,9 @@
 		"sentry/sentry": "^4.0"
 	},
 	"config": {
-		"optimize-autoloader": true
+		"optimize-autoloader": true,
+		"platform": {
+			"php": "8.3.30"
+		}
 	}
 }
