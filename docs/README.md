@@ -1,25 +1,17 @@
 # Awana Commerce
 
-WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
+WooCommerce integration hub for Awana — connects CRM, WooCommerce, Integrera, and PowerOffice Go (POG) to manage membership invoices end-to-end.
 
-## Installation
+## What It Does
 
-1. Copy the `awana-commerce` folder to `wp-content/plugins/`
-2. Activate the plugin in WordPress admin
-3. Add the API key to `wp-config.php`:
-
-```php
-define( 'AWANA_DIGITAL_API_KEY', 'your-secret-api-key-here' );
-```
-
-### Firebase Org Sync (Login)
-
-Configure the Firebase org sync in `wp-config.php`:
-
-```php
-define( 'AWANA_FIREBASE_GET_ORGS_URL', 'https://europe-west3-awana-server.cloudfunctions.net/getUserOrganizations' );
-define( 'AWANA_FIREBASE_API_KEY', 'your-firebase-api-key-here' );
-```
+| Feature | Description |
+|---------|-------------|
+| **Invoice Sync** | Receives invoices from CRM via REST API, creates/updates WooCommerce guest orders |
+| **CRM Webhooks** | Sends POG customer numbers, invoice status, and KID back to CRM when Integrera updates orders |
+| **B2B Checkout** | 3-step wizard with org selector, billing auto-fill from Firebase organization data |
+| **Org Sync** | TTL-based (4h) Firebase organization refresh on cart and checkout pages |
+| **Admin Dashboard** | Sync statistics, failed sync retry, health checks (WooCommerce → Awana Sync) |
+| **Debug Tools** | Org sync validation, Firebase UID management (WooCommerce → Awana Org Debug) |
 
 ## Requirements
 
@@ -27,51 +19,67 @@ define( 'AWANA_FIREBASE_API_KEY', 'your-firebase-api-key-here' );
 - WooCommerce 5.0+
 - PHP 7.4+
 
-## API Endpoints
+## Installation
 
-### 1. Create/Update Invoice
+1. Copy the `awana-commerce` folder to `wp-content/plugins/`
+2. Activate in WordPress admin
+3. Configure constants in `wp-config.php` (see [Setup Guide](SETUP.md))
 
-**POST** `/wp-json/awana/v1/invoice`
+## Configuration (wp-config.php)
 
-**Headers:**
+```php
+// Inbound API authentication
+define( 'AWANA_DIGITAL_API_KEY', 'your-secret-api-key' );
+
+// Firebase org sync
+define( 'AWANA_FIREBASE_GET_ORGS_URL', 'https://europe-west3-awana-server.cloudfunctions.net/getUserOrganizations' );
+define( 'AWANA_FIREBASE_API_KEY', 'your-firebase-api-key' );
+
+// Outbound webhooks (Woo → CRM)
+define( 'AWANA_POG_CUSTOMER_WEBHOOK_URL', 'https://...' );
+define( 'AWANA_POG_CUSTOMER_WEBHOOK_API_KEY', 'x-api-key' );
+define( 'AWANA_INVOICE_STATUS_WEBHOOK_URL', 'https://...' );
+define( 'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY', 'x-api-key' );  // optional
 ```
-X-CRM-API-Key: your-api-key
-Content-Type: application/json
+
+## Data Flow
+
+```
+CRM (Firebase)
+  │
+  ├─── POST /awana/v1/invoice ───► WooCommerce (guest order)
+  │                                     │
+  │                                     ▼
+  │                                Integrera ───► POG (accounting)
+  │                                     │
+  │    ◄── invoiceCustomerNumberWebhook ┤  (pog_customer_number)
+  │    ◄── invoiceStatusWebhook ────────┘  (status, KID, invoice number)
+  │
+  └─── Order completed ──► invoiceStatusWebhook (status=paid)
 ```
 
-**Request Body:**
+## Inbound API
+
+### POST `/wp-json/awana/v1/invoice`
+
+Creates or updates a WooCommerce guest order from a CRM invoice. Idempotent by `invoiceId`.
+
+**Auth:** `X-CRM-API-Key` header
+
+**Request:**
 ```json
 {
   "invoiceId": "firebaseRecordName",
   "invoiceNumber": "321665",
   "status": "unpaid",
-  "type": "membership_fee",
-  "memberId": "b8dab589-dbde-4516-b56e-6b5fcb853ec6",
-  "memberName": "Kristkirken søndagsskole Bergen",
-  "organizationId": "kristkirken-i-bergen",
-  "organizationName": null,
-  "pogCustomerNumber": null,
-  "email": "vigdis@kristkirken.no",
-  "countryId": "no",
+  "memberId": "uuid",
+  "organizationId": "org-slug",
+  "email": "billing@example.com",
   "currency": "NOK",
-  "amount": 1750,
   "total": 1750,
-  "totalTax": 19,
-  "invoiceDate": "2025-12-02T00:00:00.000Z",
-  "dueDate": "2025-12-12T00:00:00.000Z",
-  "method": "invoice",
   "source": "awana-crm",
-  "syncStatus": {
-    "woo": "pending"
-  },
   "invoiceLines": [
-    {
-      "productId": 3102,
-      "quantity": 1,
-      "description": "Medlemskontingent 2025 - lisens undervisningsbøker (oppgradering)",
-      "vatRate": 0,
-      "vatCode": "fritatt"
-    }
+    { "productId": 3102, "quantity": 1, "description": "Membership fee 2025" }
   ]
 }
 ```
@@ -81,139 +89,52 @@ Content-Type: application/json
 {
   "success": true,
   "wooOrderId": 1234,
-  "wooOrderNumber": "1234",
-  "wooStatus": "pending",
+  "wooStatus": "on-hold",
   "digitalInvoiceId": "firebaseRecordName",
-  "message": "Order created/updated from digital invoice"
+  "message": "Order created from digital invoice"
 }
 ```
 
-## Outbound Webhooks (Woo → CRM)
+**Status mapping** (CRM → WooCommerce): `draft`→`pending`, `unpaid`→`on-hold`, `paid`→`completed`, `cancelled`→`cancelled`, `refunded`→`refunded`
 
-This plugin sends **two different webhooks** back to CRM when Integrera/POG updates order meta.
+## Outbound Webhooks (Woo → CRM)
 
 ### 1) invoiceCustomerNumberWebhook
 
-- **Purpose**: sync `pog_customer_number` to CRM.
-- **Trigger**: Woo order meta `pog_customer_number` changes.
-- **Config (wp-config.php)**:
-  - `AWANA_POG_CUSTOMER_WEBHOOK_URL` (required)
-  - `AWANA_POG_CUSTOMER_WEBHOOK_API_KEY` (required; sent as `x-api-key`)
-- **Payload**:
-  - `invoiceId`
-  - `pog_customer_number`
+Triggered when `pog_customer_number` changes on an order.
 
-Example:
-
-```bash
-curl -X POST "https://invoicecustomernumberwebhook-<...>/" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: <key>" \
-  -d '{
-    "invoiceId": "YrFJsshG5K0RFmywbp1P",
-    "pog_customer_number": "10199"
-  }'
-```
+**Payload:** `{ "invoiceId": "...", "pog_customer_number": "10199" }`
 
 ### 2) invoiceStatusWebhook
 
-- **Purpose**: sync invoice status + reference fields (KID / invoice number) to CRM.
-- **Trigger**: Woo order meta `pog_status`, `pog_kid_number`, or `pog_invoice_number` changes.
-- **Config (wp-config.php)**:
-  - `AWANA_INVOICE_STATUS_WEBHOOK_URL` (required)
-  - `AWANA_INVOICE_STATUS_WEBHOOK_API_KEY` (optional; sent as `x-api-key` if set)
-- **Payload**:
-  - `invoiceId` (required)
-  - `kid` (optional; from `pog_kid_number`)
-  - `pogInvoiceNumber` + `invoiceNumber` (optional; from `pog_invoice_number`)
-  - `status` (optional; mapped from `pog_status`)
+Triggered when `pog_status`, `pog_kid_number`, or `pog_invoice_number` changes, or when order status changes to `completed`.
 
-Status mapping:
-- `pog_status=order` → `status=pending`
-- `pog_status=invoice` → `status=unpaid`
+**Payload:** `{ "invoiceId": "...", "kid": "...", "pogInvoiceNumber": "...", "status": "unpaid" }`
 
-Example:
+**Status mapping** (POG → webhook): `order`→`transferred`, `invoice`→`unpaid`, WC `completed`→`paid`
 
-```bash
-curl -X POST "https://invoicestatuswebhook-<...>/" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: <key>" \
-  -d '{
-    "invoiceId": "YrFJsshG5K0RFmywbp1P",
-    "kid": "12345678903",
-    "pogInvoiceNumber": "999999",
-    "invoiceNumber": "999999",
-    "status": "unpaid"
-  }'
-```
-
-## Status Mapping
-
-Digital status → WooCommerce status:
-- `draft` → `pending`
-- `unpaid` → `on-hold`
-- `paid` → `completed`
-- `cancelled` → `cancelled`
-- `refunded` → `refunded`
+Deduplication: per-field `_pog_*_synced_to_crm` meta keys prevent duplicate sends.
 
 ## Order Meta Fields
 
-The plugin stores the following meta fields on orders:
-
-### CRM/Digital identifiers
-- `crm_invoice_id` - Invoice ID (used to find/update the same Woo order)
-- `crm_member_id` - Member ID
-- `crm_organization_id` - Organization ID
-- `crm_source` - Source system (e.g. `awana-crm`)
-- `crm_sync_woo` - Sync marker
-
-### POG fields (written by Integrera/POG)
-- `pog_customer_number` - POG customer number
-- `pog_invoice_number` - POG invoice number
-- `pog_kid_number` - KID
-- `pog_status` - POG status (mapped and sent to `invoiceStatusWebhook`)
-
-### Sync dedupe fields (internal)
-- `_pog_customer_synced_to_crm`
-- `_pog_invoice_number_synced_to_crm`
-- `_pog_kid_number_synced_to_crm`
-- `_pog_status_synced_to_crm`
-
-## Action Hooks
-
-The plugin triggers the following action hooks:
-
-- `awana_digital_invoice_created` - Fired when an invoice is created/updated
-  - Parameters: `$order` (WC_Order), `$data` (array)
-  
-- `awana_digital_invoice_synced` - Fired when an invoice is synced from POG
-  - Parameters: `$order` (WC_Order), `$data` (array)
-
-## Logging
-
-All plugin activity is logged using WooCommerce's logger. Logs can be viewed in:
-**WooCommerce → Status → Logs** (select "awana_digital" from the dropdown)
+| Prefix | Keys | Written by |
+|--------|------|------------|
+| `crm_` | `invoice_id`, `member_id`, `organization_id`, `source`, `sync_woo` | REST API (inbound) |
+| `pog_` | `customer_number`, `invoice_number`, `kid_number`, `status` | Integrera/POG |
+| `_awana_sync_` | `last_attempt`, `last_success`, `last_error`, `error_count` | Webhook handler |
+| `_awana_selected_` | `org_id`, `org_member_id`, `org_title` | Checkout wizard |
 
 ## Product Mapping
 
-The plugin attempts to find products in the following order:
-1. By WooCommerce product ID (if `productId` matches)
-2. By SKU (if `productId` matches a product SKU)
+Products are matched by WooCommerce product ID first, then by SKU. Prices come from WooCommerce unless `unitPrice` is provided in the API payload.
 
-If a product is not found, the line item is skipped and a warning is logged.
+## Logging
 
-**Pricing:** Product prices are always taken from WooCommerce. The `unitPrice` field is not used - prices are automatically calculated from the WooCommerce product's current price.
-
-## Notes
-
-- All orders are created as **guest orders** (no WordPress user account)
-- The plugin uses `invoiceId` as the unique identifier for finding existing orders
-- If an order with the same `invoiceId` exists, it will be updated (line items are replaced)
-- Currency defaults to NOK if not specified
-- Country codes are automatically converted to uppercase (e.g., "no" → "NO")
+WooCommerce → Status → Logs → select **awana_digital** from the dropdown.
 
 ## Security
 
-- API key authentication is required for all endpoints
-- API key must be defined in `wp-config.php` (not in the plugin file)
-- Use different API keys for staging and production environments
+- API key auth required for all inbound endpoints
+- Keys must be defined in `wp-config.php`, never in plugin code
+- Uses `hash_equals()` for timing-safe key comparison
+- All webhook payloads sent over HTTPS
