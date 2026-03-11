@@ -112,70 +112,34 @@
 
 		/**
 		 * Move WooCommerce content into step containers.
+		 *
+		 * Billing fields are moved (detach) to avoid duplicate IDs.
+		 * Order review/payment is cloned because WooCommerce AJAX replaces the original.
 		 */
 		moveWooCommerceContent: function() {
-			var self = this;
 			var $step2Box = this.$wizard.find('[data-step="2"] .awana-step-box');
 			var $step3Box = this.$wizard.find('[data-step="3"] .awana-step-box');
 
-			// Create containers for WooCommerce content
-			var $billingContainer = $('<div class="awana-wc-fields-container"></div>');
-			var $paymentContainer = $('<div class="awana-wc-payment-container"></div>');
-
-			// Move billing fields to step 2
+			// Move billing fields to step 2 (originals, no cloning)
 			if (this.$billingFields.length && $step2Box.length) {
-				$billingContainer.append(this.$billingFields.clone(true, true));
+				var $billingContainer = $('<div class="awana-wc-fields-container"></div>');
+				$billingContainer.append(this.$billingFields.detach());
 
-				// Also include additional fields (order notes)
 				if (this.$additionalFields.length) {
-					$billingContainer.append(this.$additionalFields.clone(true, true));
+					$billingContainer.append(this.$additionalFields.detach());
 				}
 
-				// Insert before the navigation
 				$step2Box.find('.awana-step-nav').before($billingContainer);
 			}
 
-			// Move payment and order review to step 3
-			// Note: Only clone orderReview as it contains the payment section
-			if ($step3Box.length) {
-				if (this.$orderReview.length) {
-					$paymentContainer.append(this.$orderReview.clone(true, true));
-				}
-
-				// Insert before the navigation
+			// Clone order review/payment to step 3 (WooCommerce AJAX replaces the original)
+			if ($step3Box.length && this.$orderReview.length) {
+				var $paymentContainer = $('<div class="awana-wc-payment-container"></div>');
+				$paymentContainer.append(this.$orderReview.clone(true, true));
 				$step3Box.find('.awana-step-nav').before($paymentContainer);
 			}
 
-			// Sync field values between original and cloned fields
-			this.setupFieldSync();
-		},
-
-		/**
-		 * Setup two-way sync between original and cloned form fields.
-		 */
-		setupFieldSync: function() {
-			var self = this;
-			var $fieldsContainer = this.$wizard.find('.awana-wc-fields-container');
-
-			// Remove existing handlers to prevent accumulation
-			$fieldsContainer.off('change.awanaFieldSync keyup.awanaFieldSync');
-
-			// Billing fields sync
-			$fieldsContainer.on('change.awanaFieldSync keyup.awanaFieldSync', 'input, select, textarea', function() {
-				var $this = $(this);
-				var name = $this.attr('name');
-				var id = $this.attr('id');
-
-				if (name) {
-					// Update original field
-					var $original = $('form.checkout').find('[name="' + name + '"]').not(self.$wizard.find('[name="' + name + '"]'));
-					if ($original.length) {
-						$original.val($this.val());
-					}
-				}
-			});
-
-			// Fix cloned radio buttons - give them unique IDs and set up click handlers
+			// Setup sync for cloned payment/shipping radio buttons
 			this.setupPaymentMethodSync();
 			this.setupShippingMethodSync();
 		},
@@ -532,8 +496,6 @@
 
 			// Update original values after WooCommerce checkout updates
 			$(document.body).on('updated_checkout', function() {
-				// Re-sync cloned fields with originals after checkout update (before storing)
-				self.syncFieldsFromOriginals();
 				if (self.paymentType === 'private') {
 					self.storeOriginalValues();
 				}
@@ -553,26 +515,6 @@
 			// Handle WooCommerce validation errors
 			$(document.body).on('checkout_error', function() {
 				self.handleValidationError();
-			});
-		},
-
-		/**
-		 * Sync cloned fields from original fields (after WooCommerce updates).
-		 */
-		syncFieldsFromOriginals: function() {
-			var self = this;
-
-			// Sync billing fields
-			this.$wizard.find('.awana-wc-fields-container input, .awana-wc-fields-container select, .awana-wc-fields-container textarea').each(function() {
-				var $clone = $(this);
-				var name = $clone.attr('name');
-
-				if (name) {
-					var $original = $('form.checkout').find('[name="' + name + '"]').not(self.$wizard.find('[name="' + name + '"]'));
-					if ($original.length && $original.val() !== undefined) {
-						$clone.val($original.val());
-					}
-				}
 			});
 		},
 
@@ -698,22 +640,15 @@
 		},
 
 		/**
-		 * Set a field value and trigger change (both original and cloned).
+		 * Set a billing field value and trigger change.
 		 *
 		 * @param {string} fieldId - Field ID without #
 		 * @param {string} value - Value to set
 		 */
 		setFieldValue: function(fieldId, value) {
-			// Set on original field
 			var $field = $('#' + fieldId);
 			if ($field.length) {
 				$field.val(value).trigger('change');
-			}
-
-			// Set on cloned field in wizard
-			var $cloned = this.$wizard.find('#' + fieldId + ', [name="' + fieldId + '"]');
-			if ($cloned.length) {
-				$cloned.val(value).trigger('change');
 			}
 		},
 
@@ -745,13 +680,14 @@
 			}
 
 			if (this.currentStep === 2) {
-				// Check required billing fields in our cloned container
+				// Check required billing fields
 				var requiredFields = [
 					'billing_first_name',
 					'billing_last_name',
 					'billing_address_1',
 					'billing_postcode',
 					'billing_city',
+					'billing_phone',
 					'billing_email'
 				];
 
@@ -777,32 +713,10 @@
 					return false;
 				}
 
-				// Sync values to original fields before proceeding
-				this.syncToOriginalFields();
-
 				return true;
 			}
 
 			return true;
-		},
-
-		/**
-		 * Sync values from wizard fields to original WooCommerce fields.
-		 */
-		syncToOriginalFields: function() {
-			var self = this;
-
-			this.$wizard.find('.awana-wc-fields-container input, .awana-wc-fields-container select, .awana-wc-fields-container textarea').each(function() {
-				var $clone = $(this);
-				var name = $clone.attr('name');
-
-				if (name) {
-					var $original = $('form.checkout').find('[name="' + name + '"]').not(self.$wizard.find('[name="' + name + '"]'));
-					if ($original.length) {
-						$original.val($clone.val());
-					}
-				}
-			});
 		},
 
 		/**
@@ -915,9 +829,6 @@
 				} else {
 					$infoText.hide();
 				}
-
-				// Sync field values from originals
-				this.syncFieldsFromOriginals();
 
 				// Trigger WooCommerce checkout update
 				$(document.body).trigger('update_checkout');

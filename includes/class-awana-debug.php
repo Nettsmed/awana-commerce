@@ -308,18 +308,20 @@ class Awana_Debug {
 			$("#awana-debug-org-select").on("change", function() {
 				var orgData = $(this).val();
 				var $result = $("#awana-debug-checkout-result");
-				if (!orgData) { $result.html("").hide(); return; }
+				if (!orgData) { $result.empty().hide(); return; }
 				try {
 					var org = JSON.parse(orgData);
-					var html = "<strong>_awana_selected_org order-meta:</strong><pre>" + JSON.stringify(org, null, 2) + "</pre>";
+					$result.empty();
+					$result.append($("<strong>").text("_awana_selected_org order-meta:"));
+					$result.append($("<pre>").text(JSON.stringify(org, null, 2)));
 					if (!org.pogCustomerNumber) {
-						html += "<p style=\"color: #856404;\">Warning: pogCustomerNumber is empty</p>";
+						$result.append($("<p>").css("color", "#856404").text("Warning: pogCustomerNumber is empty"));
 					} else {
-						html += "<p style=\"color: #155724;\">pogCustomerNumber: " + org.pogCustomerNumber + "</p>";
+						$result.append($("<p>").css("color", "#155724").text("pogCustomerNumber: " + org.pogCustomerNumber));
 					}
-					$result.html(html).show();
+					$result.show();
 				} catch(e) {
-					$result.html("<span style=\"color:red;\">Error parsing org data</span>").show();
+					$result.empty().append($("<span>").css("color", "red").text("Error parsing org data")).show();
 				}
 			});
 			$("#awana-debug-writeback-simulate").on("click", function() {
@@ -327,7 +329,7 @@ class Awana_Debug {
 				var newPog = $("#awana-debug-new-pog").val();
 				var $result = $("#awana-debug-writeback-result");
 				if (!orgData) {
-					$result.html("<span style=\"color:red;\">Please select an organization</span>").show();
+					$result.empty().append($("<span>").css("color", "red").text("Please select an organization")).show();
 					return;
 				}
 				try {
@@ -337,12 +339,13 @@ class Awana_Debug {
 						organizationId: org.organizationId || "unknown",
 						pogCustomerNumber: newPog || "(empty)"
 					};
-					var html = "<strong>Dry run - would send to updateMemberPogCustomerNumber:</strong>";
-					html += "<pre>" + JSON.stringify(payload, null, 2) + "</pre>";
-					html += "<p><em>No actual request was made.</em></p>";
-					$result.html(html).show();
+					$result.empty();
+					$result.append($("<strong>").text("Dry run - would send to updateMemberPogCustomerNumber:"));
+					$result.append($("<pre>").text(JSON.stringify(payload, null, 2)));
+					$result.append($("<p>").append($("<em>").text("No actual request was made.")));
+					$result.show();
 				} catch(e) {
-					$result.html("<span style=\"color:red;\">Error parsing org data</span>").show();
+					$result.empty().append($("<span>").css("color", "red").text("Error parsing org data")).show();
 				}
 			});';
 	}

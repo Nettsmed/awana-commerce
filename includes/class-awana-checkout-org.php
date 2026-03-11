@@ -35,7 +35,7 @@ class Awana_Checkout_Org {
 	 */
 	public static function init() {
 		$instance = new self();
-		add_filter( 'woocommerce_checkout_fields', array( $instance, 'add_org_number_field' ) );
+		add_filter( 'woocommerce_checkout_fields', array( $instance, 'add_checkout_fields' ) );
 		add_action( 'woocommerce_before_checkout_billing_form', array( $instance, 'render_payment_type_selector' ) );
 		add_action( 'woocommerce_checkout_process', array( $instance, 'validate_checkout_field' ) );
 		add_action( 'woocommerce_checkout_create_order', array( $instance, 'save_checkout_field' ), 10, 2 );
@@ -50,7 +50,7 @@ class Awana_Checkout_Org {
 	 * @param array $fields Checkout fields.
 	 * @return array
 	 */
-	public function add_org_number_field( $fields ) {
+	public function add_checkout_fields( $fields ) {
 		$fields['billing']['org_number'] = array(
 			'type'        => 'text',
 			'label'       => __( 'Organisasjonsnummer', 'awana-digital-sync' ),
@@ -59,6 +59,11 @@ class Awana_Checkout_Org {
 			'class'       => array( 'form-row-wide' ),
 			'priority'    => 120,
 		);
+
+		// Make phone number required.
+		if ( isset( $fields['billing']['billing_phone'] ) ) {
+			$fields['billing']['billing_phone']['required'] = true;
+		}
 
 		return $fields;
 	}

@@ -19,8 +19,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-// Check if WooCommerce is active
-if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+// Check if WooCommerce is active (supports both standard and multisite network activation).
+$active_plugins = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
+if ( is_multisite() ) {
+	$active_plugins = array_merge( $active_plugins, array_keys( get_site_option( 'active_sitewide_plugins', array() ) ) );
+}
+if ( ! in_array( 'woocommerce/woocommerce.php', $active_plugins, true ) ) {
 	return;
 }
 
