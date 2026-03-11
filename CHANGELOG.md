@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.3] - 2026-03-11
 
+### Added
+- B2B checkout: 3-step wizard (customer type, billing details, payment) with org selector
+- Auto-fill billing fields from Firebase organization data when org is selected
+- Organization number checkout field (moved from code snippet into plugin)
+- TTL-based organization sync on cart and checkout pages
+- Admin debug page for B2B org sync validation
+
 ### Fixed
-- Billing email field emptied when org has no `billingEmail` — now falls back to WP user email
-- Added debug logging for orgNumber save to diagnose missing order meta
+- Billing email now falls back to WP user email when org has no `billingEmail`
+- Organization number field auto-populated from org data on selection
+- Wizard positioning on resize and completed step number visibility
+- Payment/shipping method sync in checkout wizard after WooCommerce AJAX updates
 
 ## [1.1.2] - 2025-01-XX
 
