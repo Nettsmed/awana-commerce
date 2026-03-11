@@ -7,20 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-03-11
 
-### Changed
-- **Renamed plugin** from "Awana Digital Sync" to "Awana Commerce" to reflect expanded scope (B2B checkout, org sync, admin dashboard)
-- Main file renamed from `awana-digital-sync.php` to `awana-commerce.php`
-- Text domain changed from `awana-digital-sync` to `awana-commerce`
-- Constants renamed from `AWANA_DIGITAL_SYNC_*` to `AWANA_COMMERCE_*` (backward-compat defines added)
-
-## [1.1.3] - 2026-03-11
-
 ### Added
 - B2B checkout: 3-step wizard (customer type, billing details, payment) with org selector
 - Auto-fill billing fields from Firebase organization data when org is selected
 - Organization number checkout field (moved from code snippet into plugin)
 - TTL-based organization sync on cart and checkout pages
 - Admin debug page for B2B org sync validation
+- Sentry error monitoring integration for centralized error tracking
+- Composer dependency management with `sentry/sentry` SDK
+
+### Changed
+- **Renamed plugin** from "Awana Digital Sync" to "Awana Commerce" to reflect expanded scope
+- Main file renamed from `awana-digital-sync.php` to `awana-commerce.php`
+- Text domain changed from `awana-digital-sync` to `awana-commerce`
+- Constants renamed from `AWANA_DIGITAL_SYNC_*` to `AWANA_COMMERCE_*` (backward-compat defines added)
 
 ### Fixed
 - Billing company now set via `set_billing_company()` so native WooCommerce field is populated

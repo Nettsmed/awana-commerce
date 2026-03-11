@@ -65,6 +65,14 @@ class Awana_Logger {
 	 */
 	public static function error( $message, $context = array() ) {
 		self::log( $message, $context, 'error' );
+
+		// Also capture in Sentry for centralized error monitoring
+		if ( function_exists( '\\Sentry\\captureMessage' ) ) {
+			\Sentry\withScope( function ( \Sentry\State\Scope $scope ) use ( $message, $context ) {
+				$scope->setContext( 'awana', $context );
+				\Sentry\captureMessage( $message, \Sentry\Severity::error() );
+			} );
+		}
 	}
 }
 

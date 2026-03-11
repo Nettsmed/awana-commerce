@@ -7,7 +7,7 @@
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
- * Requires PHP: 7.4
+ * Requires PHP: 8.1
  * WC requires at least: 5.0
  * WC tested up to: 8.0
  * Text Domain: awana-commerce
@@ -17,15 +17,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
-}
-
-// Check if WooCommerce is active (supports both standard and multisite network activation).
-$active_plugins = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
-if ( is_multisite() ) {
-	$active_plugins = array_merge( $active_plugins, array_keys( get_site_option( 'active_sitewide_plugins', array() ) ) );
-}
-if ( ! in_array( 'woocommerce/woocommerce.php', $active_plugins, true ) ) {
-	return;
 }
 
 // Define plugin constants.
@@ -42,6 +33,29 @@ if ( ! defined( 'AWANA_DIGITAL_SYNC_PATH' ) ) {
 }
 if ( ! defined( 'AWANA_DIGITAL_SYNC_URL' ) ) {
 	define( 'AWANA_DIGITAL_SYNC_URL', AWANA_COMMERCE_URL );
+}
+
+// Load Composer autoloader (must be early, before any class usage).
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+	require_once __DIR__ . '/vendor/autoload.php';
+}
+
+// Initialize Sentry error monitoring.
+if ( function_exists( '\\Sentry\\init' ) ) {
+	\Sentry\init( array(
+		'dsn'         => 'https://1b34e0ec5d03d25ce1f564716c42e4ef@o4508484236607488.ingest.de.sentry.io/4511009417330768',
+		'environment' => function_exists( 'wp_get_environment_type' ) ? ( wp_get_environment_type() ?: 'production' ) : 'production',
+		'release'     => 'woo-endpoint-awana@' . AWANA_COMMERCE_VERSION,
+	) );
+}
+
+// Check if WooCommerce is active (supports both standard and multisite network activation).
+$active_plugins = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
+if ( is_multisite() ) {
+	$active_plugins = array_merge( $active_plugins, array_keys( get_site_option( 'active_sitewide_plugins', array() ) ) );
+}
+if ( ! in_array( 'woocommerce/woocommerce.php', $active_plugins, true ) ) {
+	return;
 }
 
 // Include required files
