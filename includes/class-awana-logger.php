@@ -1,8 +1,8 @@
 <?php
 /**
- * Logger class for Awana Digital Sync
+ * Logger class for Awana Commerce
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

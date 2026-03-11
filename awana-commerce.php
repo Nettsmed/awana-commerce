@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: Awana Digital Sync
+ * Plugin Name: Awana Commerce
  * Plugin URI: https://awana.no
- * Description: Syncs invoices from Digital/CRM to WooCommerce as guest orders and handles POG/Integrera sync updates.
+ * Description: WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
  * Version: 1.2.0
  * Author: Awana
  * Author URI: https://awana.no
@@ -10,7 +10,7 @@
  * Requires PHP: 8.1
  * WC requires at least: 5.0
  * WC tested up to: 8.0
- * Text Domain: awana-digital-sync
+ * Text Domain: awana-commerce
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
@@ -19,29 +19,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-// Define plugin constants
-define( 'AWANA_DIGITAL_SYNC_VERSION', '1.2.0' );
+// Define plugin constants.
+define( 'AWANA_COMMERCE_VERSION', '1.2.0' );
+define( 'AWANA_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
+define( 'AWANA_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
-// Load Composer autoloader (must be early, before any class usage)
+// Backward compatibility.
+if ( ! defined( 'AWANA_DIGITAL_SYNC_VERSION' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_VERSION', AWANA_COMMERCE_VERSION );
+}
+if ( ! defined( 'AWANA_DIGITAL_SYNC_PATH' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_PATH', AWANA_COMMERCE_PATH );
+}
+if ( ! defined( 'AWANA_DIGITAL_SYNC_URL' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_URL', AWANA_COMMERCE_URL );
+}
+
+// Load Composer autoloader (must be early, before any class usage).
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload.php';
 }
 
-// Initialize Sentry error monitoring
+// Initialize Sentry error monitoring.
 if ( function_exists( '\\Sentry\\init' ) ) {
 	\Sentry\init( array(
 		'dsn'         => 'https://1b34e0ec5d03d25ce1f564716c42e4ef@o4508484236607488.ingest.de.sentry.io/4511009417330768',
 		'environment' => function_exists( 'wp_get_environment_type' ) ? ( wp_get_environment_type() ?: 'production' ) : 'production',
-		'release'     => 'woo-endpoint-awana@' . AWANA_DIGITAL_SYNC_VERSION,
+		'release'     => 'woo-endpoint-awana@' . AWANA_COMMERCE_VERSION,
 	) );
 }
 
-// Check if WooCommerce is active
-if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+// Check if WooCommerce is active (supports both standard and multisite network activation).
+$active_plugins = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
+if ( is_multisite() ) {
+	$active_plugins = array_merge( $active_plugins, array_keys( get_site_option( 'active_sitewide_plugins', array() ) ) );
+}
+if ( ! in_array( 'woocommerce/woocommerce.php', $active_plugins, true ) ) {
 	return;
 }
-define( 'AWANA_DIGITAL_SYNC_PATH', plugin_dir_path( __FILE__ ) );
-define( 'AWANA_DIGITAL_SYNC_URL', plugin_dir_url( __FILE__ ) );
 
 // Include required files
 include_once 'includes/class-awana-logger.php';
@@ -50,14 +65,20 @@ include_once 'includes/product-mapping.php';
 include_once 'includes/class-awana-crm-webhook.php';
 include_once 'includes/class-awana-order-handler.php';
 include_once 'includes/class-awana-rest-controller.php';
+include_once 'includes/class-awana-org-sync.php';
+include_once 'includes/class-awana-checkout-org.php';
 
 // Initialize the plugin
 Awana_REST_Controller::init();
+Awana_Org_Sync::init();
+Awana_Checkout_Org::init();
 
 // Initialize admin UI only in admin context
 if ( is_admin() ) {
 	include_once 'includes/class-awana-admin.php';
+	include_once 'includes/class-awana-debug.php';
 	Awana_Admin::init();
+	Awana_Debug::init();
 }
 
 /**

@@ -2,15 +2,15 @@
 
 ## 1. Install Plugin
 
-Copy the `awana-digital-sync` folder to your WordPress installation:
+Copy the `awana-commerce` folder to your WordPress installation:
 ```
-wp-content/plugins/awana-digital-sync/
+wp-content/plugins/awana-commerce/
 ```
 
 ## 2. Activate Plugin
 
 1. Go to **WordPress Admin → Plugins**
-2. Find "Awana Digital Sync"
+2. Find "Awana Commerce"
 3. Click "Activate"
 
 ## 3. Configure API Key
@@ -18,7 +18,7 @@ wp-content/plugins/awana-digital-sync/
 Add the following line to your `wp-config.php` file (before the "That's all, stop editing!" line):
 
 ```php
-// Awana Digital Sync API Key
+// Awana Commerce API Key
 define( 'AWANA_DIGITAL_API_KEY', 'your-super-secret-api-key-here' );
 ```
 
@@ -65,7 +65,17 @@ if ( defined( 'WP_ENVIRONMENT_TYPE' ) ) {
 }
 ```
 
-## 4. Configure Outbound Webhooks (Woo → CRM)
+## 4. Configure Firebase Org Sync (Login)
+
+Add the Firebase org sync configuration to `wp-config.php` (before the "That's all, stop editing!" line):
+
+```php
+// Firebase org sync (getUserOrganizations)
+define( 'AWANA_FIREBASE_GET_ORGS_URL', 'https://europe-west3-awana-server.cloudfunctions.net/getUserOrganizations' );
+define( 'AWANA_FIREBASE_API_KEY', 'your-firebase-api-key-here' );
+```
+
+## 5. Configure Outbound Webhooks (Woo → CRM)
 
 Integrera/POG writes POG fields back to the Woo order as meta. This plugin detects changes and sends outbound webhooks back to CRM.
 
@@ -87,7 +97,7 @@ Notes:
 - `AWANA_POG_CUSTOMER_WEBHOOK_API_KEY` is required (customer number webhook always uses `x-api-key`).
 - `AWANA_INVOICE_STATUS_WEBHOOK_API_KEY` is optional; if you don’t define it, the plugin will send without `x-api-key`.
 
-## 5. Test the Endpoint
+## 6. Test the Endpoint
 
 You can test the endpoint using curl:
 
@@ -111,14 +121,14 @@ curl -X POST https://your-site.com/wp-json/awana/v1/invoice \
   }'
 ```
 
-## 6. Configure Firebase/Integrera
+## 7. Configure Firebase/Integrera
 
 Update your Firebase functions and Integrera integration to use:
 
 - **Endpoint URL:** `https://your-site.com/wp-json/awana/v1/invoice`
 - **API Key Header:** `X-CRM-API-Key: your-api-key`
 
-## 7. Verify Logging
+## 8. Verify Logging
 
 Check that logs are being created:
 
@@ -146,4 +156,3 @@ Check that logs are being created:
 ### 404 errors on endpoints
 - Ensure permalinks are not set to "Plain" (use any other option)
 - Try flushing permalinks: **Settings → Permalinks → Save Changes**
-

@@ -1,8 +1,8 @@
 <?php
 /**
- * Admin UI class for Awana Digital Sync
+ * Admin UI class for Awana Commerce
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -32,8 +32,8 @@ class Awana_Admin {
 	public function add_admin_menu() {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Awana Sync', 'awana-digital-sync' ),
-			__( 'Awana Sync', 'awana-digital-sync' ),
+			__( 'Awana Sync', 'awana-commerce' ),
+			__( 'Awana Sync', 'awana-commerce' ),
 			'manage_woocommerce',
 			'awana-sync',
 			array( $this, 'render_admin_page' )
@@ -73,7 +73,7 @@ class Awana_Admin {
 				var originalText = $button.text();
 				
 				// Disable button and show loading state
-				$button.prop('disabled', true).text('<?php echo esc_js( __( 'Syncing...', 'awana-digital-sync' ) ); ?>');
+				$button.prop('disabled', true).text('<?php echo esc_js( __( 'Syncing...', 'awana-commerce' ) ); ?>');
 				
 				$.ajax({
 					url: '<?php echo esc_url( $ajax_url ); ?>',
@@ -106,7 +106,7 @@ class Awana_Admin {
 						}
 					},
 					error: function() {
-						$listItem.append('<span style="color: red; margin-left: 10px;"><?php echo esc_js( __( 'Error: Sync request failed', 'awana-digital-sync' ) ); ?></span>');
+						$listItem.append('<span style="color: red; margin-left: 10px;"><?php echo esc_js( __( 'Error: Sync request failed', 'awana-commerce' ) ); ?></span>');
 						$button.prop('disabled', false).text(originalText);
 					}
 				});
@@ -157,42 +157,42 @@ class Awana_Admin {
 
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( __( 'Awana Sync Management', 'awana-digital-sync' ) ); ?></h1>
+			<h1><?php echo esc_html( __( 'Awana Sync Management', 'awana-commerce' ) ); ?></h1>
 			
 			<div class="notice notice-info" style="margin: 20px 0;">
 				<p>
-					<strong><?php echo esc_html( __( 'About this dashboard:', 'awana-digital-sync' ) ); ?></strong>
-					<?php echo esc_html( __( 'This dashboard tracks the sync status between AWANA CRM and WooCommerce. It does not track Integrera sync operations.', 'awana-digital-sync' ) ); ?>
+					<strong><?php echo esc_html( __( 'About this dashboard:', 'awana-commerce' ) ); ?></strong>
+					<?php echo esc_html( __( 'This dashboard tracks the sync status between AWANA CRM and WooCommerce. It does not track Integrera sync operations.', 'awana-commerce' ) ); ?>
 				</p>
 			</div>
 
 			<!-- Search -->
 			<div class="awana-search" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccd0d4;">
-				<h2 style="margin-top: 0;"><?php echo esc_html( __( 'Search', 'awana-digital-sync' ) ); ?></h2>
+				<h2 style="margin-top: 0;"><?php echo esc_html( __( 'Search', 'awana-commerce' ) ); ?></h2>
 				<form method="get" action="">
 					<input type="hidden" name="page" value="awana-sync" />
 					<table class="form-table">
 						<tbody>
 							<tr>
 								<th scope="row">
-									<label for="awana_search_type"><?php echo esc_html( __( 'Search By', 'awana-digital-sync' ) ); ?></label>
+									<label for="awana_search_type"><?php echo esc_html( __( 'Search By', 'awana-commerce' ) ); ?></label>
 								</th>
 								<td>
 									<select id="awana_search_type" name="awana_search_type">
-										<option value="order_id" <?php selected( $search_type, 'order_id' ); ?>><?php echo esc_html( __( 'Order ID', 'awana-digital-sync' ) ); ?></option>
-										<option value="invoice_id" <?php selected( $search_type, 'invoice_id' ); ?>><?php echo esc_html( __( 'Invoice ID', 'awana-digital-sync' ) ); ?></option>
+										<option value="order_id" <?php selected( $search_type, 'order_id' ); ?>><?php echo esc_html( __( 'Order ID', 'awana-commerce' ) ); ?></option>
+										<option value="invoice_id" <?php selected( $search_type, 'invoice_id' ); ?>><?php echo esc_html( __( 'Invoice ID', 'awana-commerce' ) ); ?></option>
 									</select>
 								</td>
 							</tr>
 							<tr>
 								<th scope="row">
-									<label for="awana_search"><?php echo esc_html( __( 'Search', 'awana-digital-sync' ) ); ?></label>
+									<label for="awana_search"><?php echo esc_html( __( 'Search', 'awana-commerce' ) ); ?></label>
 								</th>
 								<td>
-									<input type="text" id="awana_search" name="awana_search" value="<?php echo esc_attr( $search_query ); ?>" class="regular-text" placeholder="<?php echo esc_attr( __( 'Enter order ID or invoice ID...', 'awana-digital-sync' ) ); ?>" />
-									<?php submit_button( __( 'Search', 'awana-digital-sync' ), 'secondary', 'submit', false ); ?>
+									<input type="text" id="awana_search" name="awana_search" value="<?php echo esc_attr( $search_query ); ?>" class="regular-text" placeholder="<?php echo esc_attr( __( 'Enter order ID or invoice ID...', 'awana-commerce' ) ); ?>" />
+									<?php submit_button( __( 'Search', 'awana-commerce' ), 'secondary', 'submit', false ); ?>
 									<?php if ( ! empty( $search_query ) ) : ?>
-										<a href="<?php echo esc_url( admin_url( 'admin.php?page=awana-sync' ) ); ?>" class="button"><?php echo esc_html( __( 'Clear', 'awana-digital-sync' ) ); ?></a>
+										<a href="<?php echo esc_url( admin_url( 'admin.php?page=awana-sync' ) ); ?>" class="button"><?php echo esc_html( __( 'Clear', 'awana-commerce' ) ); ?></a>
 									<?php endif; ?>
 								</td>
 							</tr>
@@ -203,19 +203,19 @@ class Awana_Admin {
 
 			<!-- Statistics -->
 			<div class="awana-sync-stats" style="margin: 20px 0;">
-				<h2><?php echo esc_html( __( 'Sync Statistics', 'awana-digital-sync' ) ); ?></h2>
+				<h2><?php echo esc_html( __( 'Sync Statistics', 'awana-commerce' ) ); ?></h2>
 				<table class="widefat">
 					<tbody>
 						<tr>
-							<td><strong><?php echo esc_html( __( 'Total Orders Synced', 'awana-digital-sync' ) ); ?>:</strong></td>
+							<td><strong><?php echo esc_html( __( 'Total Orders Synced', 'awana-commerce' ) ); ?>:</strong></td>
 							<td><?php echo esc_html( $stats['total_synced'] ); ?></td>
 						</tr>
 						<tr>
-							<td><strong><?php echo esc_html( __( 'Failed Syncs', 'awana-digital-sync' ) ); ?>:</strong></td>
+							<td><strong><?php echo esc_html( __( 'Failed Syncs', 'awana-commerce' ) ); ?>:</strong></td>
 							<td><?php echo esc_html( $stats['failed_count'] ); ?></td>
 						</tr>
 						<tr>
-							<td><strong><?php echo esc_html( __( 'Success Rate', 'awana-digital-sync' ) ); ?>:</strong></td>
+							<td><strong><?php echo esc_html( __( 'Success Rate', 'awana-commerce' ) ); ?>:</strong></td>
 							<td><?php echo esc_html( $stats['success_rate'] ); ?>%</td>
 						</tr>
 					</tbody>
@@ -224,19 +224,19 @@ class Awana_Admin {
 
 			<!-- Recent Sync Activity -->
 			<div class="awana-recent-syncs" style="margin: 20px 0;">
-				<h2><?php echo esc_html( __( 'Recent Sync Activity', 'awana-digital-sync' ) ); ?></h2>
+				<h2><?php echo esc_html( __( 'Recent Sync Activity', 'awana-commerce' ) ); ?></h2>
 				<?php if ( empty( $recent_syncs ) ) : ?>
-					<p><?php echo esc_html( __( 'No recent sync activity.', 'awana-digital-sync' ) ); ?></p>
+					<p><?php echo esc_html( __( 'No recent sync activity.', 'awana-commerce' ) ); ?></p>
 				<?php else : ?>
 					<table class="wp-list-table widefat fixed striped">
 						<thead>
 							<tr>
-								<th><?php echo esc_html( __( 'Time', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Order ID', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Invoice ID', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Sync Type', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Status', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Result', 'awana-digital-sync' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Time', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Order ID', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Invoice ID', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Sync Type', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Status', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Result', 'awana-commerce' ) ); ?></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -249,8 +249,8 @@ class Awana_Admin {
 										</a>
 									</td>
 									<td>
-										<?php if ( ! empty( $sync['invoice_id'] ) && $sync['invoice_id'] !== __( 'N/A', 'awana-digital-sync' ) ) : ?>
-											<a href="<?php echo esc_url( $this->get_firebase_url( $sync['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>">
+										<?php if ( ! empty( $sync['invoice_id'] ) && $sync['invoice_id'] !== __( 'N/A', 'awana-commerce' ) ) : ?>
+											<a href="<?php echo esc_url( $this->get_firebase_url( $sync['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>">
 												<?php echo esc_html( $sync['invoice_id'] ); ?>
 											</a>
 										<?php else : ?>
@@ -279,7 +279,7 @@ class Awana_Admin {
 												<?php echo esc_html( $sync['error'] ); ?>
 											</span>
 										<?php else : ?>
-											<span style="color: green;"><?php echo esc_html( __( 'Success', 'awana-digital-sync' ) ); ?></span>
+											<span style="color: green;"><?php echo esc_html( __( 'Success', 'awana-commerce' ) ); ?></span>
 										<?php endif; ?>
 									</td>
 								</tr>
@@ -291,19 +291,19 @@ class Awana_Admin {
 
 			<!-- Sync Health Check -->
 			<div class="awana-sync-health" style="margin: 20px 0;">
-				<h2><?php echo esc_html( __( 'Sync Health Check', 'awana-digital-sync' ) ); ?></h2>
+				<h2><?php echo esc_html( __( 'Sync Health Check', 'awana-commerce' ) ); ?></h2>
 				<?php if ( empty( $completed_not_synced ) && empty( $high_error_orders ) ) : ?>
 					<p style="color: green;">
-						<strong><?php echo esc_html( __( '✓ No sync issues detected.', 'awana-digital-sync' ) ); ?></strong>
+						<strong><?php echo esc_html( __( '✓ No sync issues detected.', 'awana-commerce' ) ); ?></strong>
 					</p>
 				<?php else : ?>
 					<?php if ( ! empty( $completed_not_synced ) ) : ?>
 						<div class="awana-health-issue" style="margin: 15px 0; padding: 10px; border-left: 4px solid #dc3232; background: #fff;">
 							<h3 style="margin-top: 0;">
-								<?php echo esc_html( __( 'Completed Orders Not Synced as Paid', 'awana-digital-sync' ) ); ?>
+								<?php echo esc_html( __( 'Completed Orders Not Synced as Paid', 'awana-commerce' ) ); ?>
 								<span style="color: #dc3232;">(<?php echo esc_html( count( $completed_not_synced ) ); ?>)</span>
 							</h3>
-							<p><?php echo esc_html( __( 'Orders with completed status that haven\'t been synced with paid status to CRM.', 'awana-digital-sync' ) ); ?></p>
+							<p><?php echo esc_html( __( 'Orders with completed status that haven\'t been synced with paid status to CRM.', 'awana-commerce' ) ); ?></p>
 							<?php if ( count( $completed_not_synced ) <= 10 ) : ?>
 								<ul>
 									<?php foreach ( $completed_not_synced as $order_data ) : ?>
@@ -312,19 +312,19 @@ class Awana_Admin {
 												Order #<?php echo esc_html( $order_data['order_number'] ); ?>
 											</a>
 											<?php if ( ! empty( $order_data['invoice_id'] ) ) : ?>
-												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
+												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
 											<?php endif; ?>
 											<?php if ( ! empty( $order_data['completed_date'] ) ) : ?>
-												- <?php echo esc_html( __( 'Completed:', 'awana-digital-sync' ) . ' ' . $order_data['completed_date'] ); ?>
+												- <?php echo esc_html( __( 'Completed:', 'awana-commerce' ) . ' ' . $order_data['completed_date'] ); ?>
 											<?php endif; ?>
 											<button type="button" class="button button-small awana-sync-order-btn" data-order-id="<?php echo esc_attr( $order_data['order_id'] ); ?>" style="margin-left: 10px;">
-												<?php echo esc_html( __( 'Sync', 'awana-digital-sync' ) ); ?>
+												<?php echo esc_html( __( 'Sync', 'awana-commerce' ) ); ?>
 											</button>
 										</li>
 									<?php endforeach; ?>
 								</ul>
 							<?php else : ?>
-								<p><?php echo esc_html( sprintf( __( '%d orders found. Showing first 10.', 'awana-digital-sync' ), count( $completed_not_synced ) ) ); ?></p>
+								<p><?php echo esc_html( sprintf( __( '%d orders found. Showing first 10.', 'awana-commerce' ), count( $completed_not_synced ) ) ); ?></p>
 								<ul>
 									<?php foreach ( array_slice( $completed_not_synced, 0, 10 ) as $order_data ) : ?>
 										<li>
@@ -332,10 +332,10 @@ class Awana_Admin {
 												Order #<?php echo esc_html( $order_data['order_number'] ); ?>
 											</a>
 											<?php if ( ! empty( $order_data['invoice_id'] ) ) : ?>
-												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
+												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
 											<?php endif; ?>
 											<button type="button" class="button button-small awana-sync-order-btn" data-order-id="<?php echo esc_attr( $order_data['order_id'] ); ?>" style="margin-left: 10px;">
-												<?php echo esc_html( __( 'Sync', 'awana-digital-sync' ) ); ?>
+												<?php echo esc_html( __( 'Sync', 'awana-commerce' ) ); ?>
 											</button>
 										</li>
 									<?php endforeach; ?>
@@ -347,10 +347,10 @@ class Awana_Admin {
 					<?php if ( ! empty( $high_error_orders ) ) : ?>
 						<div class="awana-health-issue" style="margin: 15px 0; padding: 10px; border-left: 4px solid #dc3232; background: #fff;">
 							<h3 style="margin-top: 0;">
-								<?php echo esc_html( __( 'Orders with Multiple Sync Failures', 'awana-digital-sync' ) ); ?>
+								<?php echo esc_html( __( 'Orders with Multiple Sync Failures', 'awana-commerce' ) ); ?>
 								<span style="color: #dc3232;">(<?php echo esc_html( count( $high_error_orders ) ); ?>)</span>
 							</h3>
-							<p><?php echo esc_html( __( 'Orders that have failed to sync 3 or more times.', 'awana-digital-sync' ) ); ?></p>
+							<p><?php echo esc_html( __( 'Orders that have failed to sync 3 or more times.', 'awana-commerce' ) ); ?></p>
 							<?php if ( count( $high_error_orders ) <= 10 ) : ?>
 								<ul>
 									<?php foreach ( $high_error_orders as $order_data ) : ?>
@@ -359,20 +359,20 @@ class Awana_Admin {
 												Order #<?php echo esc_html( $order_data['order_number'] ); ?>
 											</a>
 											<?php if ( ! empty( $order_data['invoice_id'] ) ) : ?>
-												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
+												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
 											<?php endif; ?>
-											- <?php echo esc_html( sprintf( __( '%d errors', 'awana-digital-sync' ), $order_data['error_count'] ) ); ?>
+											- <?php echo esc_html( sprintf( __( '%d errors', 'awana-commerce' ), $order_data['error_count'] ) ); ?>
 											<?php if ( ! empty( $order_data['last_error'] ) ) : ?>
 												: <?php echo esc_html( $order_data['last_error'] ); ?>
 											<?php endif; ?>
 											<button type="button" class="button button-small awana-sync-order-btn" data-order-id="<?php echo esc_attr( $order_data['order_id'] ); ?>" style="margin-left: 10px;">
-												<?php echo esc_html( __( 'Sync', 'awana-digital-sync' ) ); ?>
+												<?php echo esc_html( __( 'Sync', 'awana-commerce' ) ); ?>
 											</button>
 										</li>
 									<?php endforeach; ?>
 								</ul>
 							<?php else : ?>
-								<p><?php echo esc_html( sprintf( __( '%d orders found. Showing first 10.', 'awana-digital-sync' ), count( $high_error_orders ) ) ); ?></p>
+								<p><?php echo esc_html( sprintf( __( '%d orders found. Showing first 10.', 'awana-commerce' ), count( $high_error_orders ) ) ); ?></p>
 								<ul>
 									<?php foreach ( array_slice( $high_error_orders, 0, 10 ) as $order_data ) : ?>
 										<li>
@@ -380,11 +380,11 @@ class Awana_Admin {
 												Order #<?php echo esc_html( $order_data['order_number'] ); ?>
 											</a>
 											<?php if ( ! empty( $order_data['invoice_id'] ) ) : ?>
-												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
+												- Invoice ID: <a href="<?php echo esc_url( $this->get_firebase_url( $order_data['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>"><?php echo esc_html( $order_data['invoice_id'] ); ?></a>
 											<?php endif; ?>
-											- <?php echo esc_html( sprintf( __( '%d errors', 'awana-digital-sync' ), $order_data['error_count'] ) ); ?>
+											- <?php echo esc_html( sprintf( __( '%d errors', 'awana-commerce' ), $order_data['error_count'] ) ); ?>
 											<button type="button" class="button button-small awana-sync-order-btn" data-order-id="<?php echo esc_attr( $order_data['order_id'] ); ?>" style="margin-left: 10px;">
-												<?php echo esc_html( __( 'Sync', 'awana-digital-sync' ) ); ?>
+												<?php echo esc_html( __( 'Sync', 'awana-commerce' ) ); ?>
 											</button>
 										</li>
 									<?php endforeach; ?>
@@ -397,42 +397,42 @@ class Awana_Admin {
 
 			<!-- Manual Sync -->
 			<div class="awana-manual-sync" style="margin: 20px 0;">
-				<h2><?php echo esc_html( __( 'Manual Sync', 'awana-digital-sync' ) ); ?></h2>
+				<h2><?php echo esc_html( __( 'Manual Sync', 'awana-commerce' ) ); ?></h2>
 				<form method="post" action="">
 					<?php wp_nonce_field( 'awana_manual_sync', 'awana_manual_sync_nonce' ); ?>
 					<table class="form-table">
 						<tbody>
 							<tr>
 								<th scope="row">
-									<label for="order_id"><?php echo esc_html( __( 'Order ID', 'awana-digital-sync' ) ); ?></label>
+									<label for="order_id"><?php echo esc_html( __( 'Order ID', 'awana-commerce' ) ); ?></label>
 								</th>
 								<td>
 									<input type="number" id="order_id" name="order_id" class="regular-text" min="1" required />
-									<p class="description"><?php echo esc_html( __( 'Enter the WooCommerce order ID to sync.', 'awana-digital-sync' ) ); ?></p>
+									<p class="description"><?php echo esc_html( __( 'Enter the WooCommerce order ID to sync.', 'awana-commerce' ) ); ?></p>
 								</td>
 							</tr>
 						</tbody>
 					</table>
-					<?php submit_button( __( 'Sync Now', 'awana-digital-sync' ), 'primary', 'awana_manual_sync' ); ?>
+					<?php submit_button( __( 'Sync Now', 'awana-commerce' ), 'primary', 'awana_manual_sync' ); ?>
 				</form>
 			</div>
 
 			<!-- Failed Syncs -->
 			<div class="awana-failed-syncs" style="margin: 20px 0;">
-				<h2><?php echo esc_html( __( 'Failed Syncs', 'awana-digital-sync' ) ); ?></h2>
+				<h2><?php echo esc_html( __( 'Failed Syncs', 'awana-commerce' ) ); ?></h2>
 				<?php if ( empty( $failed_syncs ) ) : ?>
-					<p><?php echo esc_html( __( 'No failed syncs found.', 'awana-digital-sync' ) ); ?></p>
+					<p><?php echo esc_html( __( 'No failed syncs found.', 'awana-commerce' ) ); ?></p>
 				<?php else : ?>
 					<table class="wp-list-table widefat fixed striped">
 						<thead>
 							<tr>
-								<th><?php echo esc_html( __( 'Order ID', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Order Number', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Invoice ID', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Last Error', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Last Attempt', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Error Count', 'awana-digital-sync' ) ); ?></th>
-								<th><?php echo esc_html( __( 'Actions', 'awana-digital-sync' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Order ID', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Order Number', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Invoice ID', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Last Error', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Last Attempt', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Error Count', 'awana-commerce' ) ); ?></th>
+								<th><?php echo esc_html( __( 'Actions', 'awana-commerce' ) ); ?></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -441,8 +441,8 @@ class Awana_Admin {
 									<td><?php echo esc_html( $order['order_id'] ); ?></td>
 									<td><?php echo esc_html( $order['order_number'] ); ?></td>
 									<td>
-										<?php if ( ! empty( $order['invoice_id'] ) && $order['invoice_id'] !== __( 'N/A', 'awana-digital-sync' ) ) : ?>
-											<a href="<?php echo esc_url( $this->get_firebase_url( $order['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-digital-sync' ) ); ?>">
+										<?php if ( ! empty( $order['invoice_id'] ) && $order['invoice_id'] !== __( 'N/A', 'awana-commerce' ) ) : ?>
+											<a href="<?php echo esc_url( $this->get_firebase_url( $order['invoice_id'] ) ); ?>" target="_blank" title="<?php echo esc_attr( __( 'View in Firebase', 'awana-commerce' ) ); ?>">
 												<?php echo esc_html( $order['invoice_id'] ); ?>
 											</a>
 										<?php else : ?>
@@ -460,7 +460,7 @@ class Awana_Admin {
 										<form method="post" action="" style="display: inline;">
 											<?php wp_nonce_field( 'awana_retry_sync', 'awana_retry_sync_nonce' ); ?>
 											<input type="hidden" name="order_id" value="<?php echo esc_attr( $order['order_id'] ); ?>" />
-											<?php submit_button( __( 'Retry', 'awana-digital-sync' ), 'small', 'awana_retry_sync', false ); ?>
+											<?php submit_button( __( 'Retry', 'awana-commerce' ), 'small', 'awana_retry_sync', false ); ?>
 										</form>
 									</td>
 								</tr>
@@ -480,12 +480,12 @@ class Awana_Admin {
 		check_ajax_referer( 'awana_manual_sync', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
 		if ( $order_id <= 0 ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-commerce' ) ) );
 		}
 
 		$result = Awana_CRM_Webhook::sync_all_order_metadata_to_crm( $order_id );
@@ -504,12 +504,12 @@ class Awana_Admin {
 		check_ajax_referer( 'awana_retry_sync', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
 		if ( $order_id <= 0 ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-commerce' ) ) );
 		}
 
 		$result = Awana_CRM_Webhook::sync_all_order_metadata_to_crm( $order_id, true );
@@ -528,12 +528,12 @@ class Awana_Admin {
 		check_ajax_referer( 'awana_sync_order', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
 		if ( $order_id <= 0 ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid order ID.', 'awana-commerce' ) ) );
 		}
 
 		$result = Awana_CRM_Webhook::sync_all_order_metadata_to_crm( $order_id, true );
@@ -604,9 +604,9 @@ class Awana_Admin {
 			$failed_syncs[] = array(
 				'order_id'     => $order_id,
 				'order_number' => $order->get_order_number(),
-				'invoice_id'   => $invoice_id ? $invoice_id : __( 'N/A', 'awana-digital-sync' ),
-				'error'        => $last_error ? $last_error : __( 'Unknown error', 'awana-digital-sync' ),
-				'last_attempt' => $last_attempt ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_attempt ) : __( 'Never', 'awana-digital-sync' ),
+				'invoice_id'   => $invoice_id ? $invoice_id : __( 'N/A', 'awana-commerce' ),
+				'error'        => $last_error ? $last_error : __( 'Unknown error', 'awana-commerce' ),
+				'last_attempt' => $last_attempt ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_attempt ) : __( 'Never', 'awana-commerce' ),
 				'error_count'  => $error_count ? $error_count : 0,
 			);
 		}
@@ -668,7 +668,7 @@ class Awana_Admin {
 	 */
 	private function format_sync_error( $error ) {
 		if ( empty( $error ) ) {
-			return __( 'No error message', 'awana-digital-sync' );
+			return __( 'No error message', 'awana-commerce' );
 		}
 
 		// Truncate long error messages
@@ -731,12 +731,12 @@ class Awana_Admin {
 			$recent_syncs[] = array(
 				'order_id'     => $order_id,
 				'order_number' => $order->get_order_number(),
-				'invoice_id'   => $invoice_id ? $invoice_id : __( 'N/A', 'awana-digital-sync' ),
+				'invoice_id'   => $invoice_id ? $invoice_id : __( 'N/A', 'awana-commerce' ),
 				'sync_type'    => $sync_type,
 				'status'       => $sync_status,
 				'order_status' => $order_status,
-				'last_attempt' => $last_attempt ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_attempt ) : __( 'Never', 'awana-digital-sync' ),
-				'last_success' => $last_success ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_success ) : __( 'Never', 'awana-digital-sync' ),
+				'last_attempt' => $last_attempt ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_attempt ) : __( 'Never', 'awana-commerce' ),
+				'last_success' => $last_success ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_success ) : __( 'Never', 'awana-commerce' ),
 				'error'        => $last_error ? $this->format_sync_error( $last_error ) : '',
 				'timestamp'    => $last_attempt ? $last_attempt : 0,
 			);
@@ -767,7 +767,7 @@ class Awana_Admin {
 		if ( $order_status === 'completed' && $last_success ) {
 			$order_date = $order->get_date_completed();
 			if ( $order_date && $last_success >= $order_date->getTimestamp() ) {
-				return __( 'Order Status Change', 'awana-digital-sync' );
+				return __( 'Order Status Change', 'awana-commerce' );
 			}
 		}
 
@@ -775,17 +775,17 @@ class Awana_Admin {
 		if ( ! empty( $pog_customer ) ) {
 			$synced_customer = $order->get_meta( '_pog_customer_synced_to_crm', true );
 			if ( (string) $pog_customer === (string) $synced_customer ) {
-				return __( 'POG Customer Number', 'awana-digital-sync' );
+				return __( 'POG Customer Number', 'awana-commerce' );
 			}
 		}
 
 		// Check if POG status/KID exists
 		if ( ! empty( $pog_status ) ) {
-			return __( 'POG Status/KID', 'awana-digital-sync' );
+			return __( 'POG Status/KID', 'awana-commerce' );
 		}
 
 		// Default to manual if we can't determine
-		return __( 'Manual', 'awana-digital-sync' );
+		return __( 'Manual', 'awana-commerce' );
 	}
 
 	/**
@@ -887,7 +887,7 @@ class Awana_Admin {
 				'order_number' => $order->get_order_number(),
 				'invoice_id'   => $invoice_id,
 				'error_count'  => $error_count ? $error_count : 0,
-				'last_error'   => $last_error ? $this->format_sync_error( $last_error ) : __( 'No error message', 'awana-digital-sync' ),
+				'last_error'   => $last_error ? $this->format_sync_error( $last_error ) : __( 'No error message', 'awana-commerce' ),
 			);
 		}
 

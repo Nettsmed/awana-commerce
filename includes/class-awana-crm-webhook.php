@@ -1,8 +1,8 @@
 <?php
 /**
- * CRM Webhook Handler class for Awana Digital Sync
+ * CRM Webhook Handler class for Awana Commerce
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

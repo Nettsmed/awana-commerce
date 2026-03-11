@@ -5,12 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-03-08
+## [1.2.0] - 2026-03-11
 
 ### Added
+- B2B checkout: 3-step wizard (customer type, billing details, payment) with org selector
+- Auto-fill billing fields from Firebase organization data when org is selected
+- Organization number checkout field (moved from code snippet into plugin)
+- TTL-based organization sync on cart and checkout pages
+- Admin debug page for B2B org sync validation
 - Sentry error monitoring integration for centralized error tracking
 - Composer dependency management with `sentry/sentry` SDK
-- All `Awana_Logger::error()` calls now also captured in Sentry with context
+
+### Changed
+- **Renamed plugin** from "Awana Digital Sync" to "Awana Commerce" to reflect expanded scope
+- Main file renamed from `awana-digital-sync.php` to `awana-commerce.php`
+- Text domain changed from `awana-digital-sync` to `awana-commerce`
+- Constants renamed from `AWANA_DIGITAL_SYNC_*` to `AWANA_COMMERCE_*` (backward-compat defines added)
+
+### Fixed
+- Billing company now set via `set_billing_company()` so native WooCommerce field is populated
+- Billing email now falls back to WP user email when org has no `billingEmail`
+- Organization number field auto-populated from org data on selection
+- Wizard positioning on resize and completed step number visibility
+- Payment/shipping method sync in checkout wizard after WooCommerce AJAX updates
 
 ## [1.1.2] - 2025-01-XX
 

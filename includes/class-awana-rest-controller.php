@@ -1,8 +1,8 @@
 <?php
 /**
- * REST Controller class for Awana Digital Sync
+ * REST Controller class for Awana Commerce
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -1,0 +1,686 @@
+<?php
+/**
+ * Checkout organization selector for logged-in users.
+ *
+ * @package Awana_Commerce
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Checkout organization selector.
+ */
+class Awana_Checkout_Org {
+
+	const FIELD_KEY          = 'awana_selected_organization';
+	const FIELD_PAYMENT_TYPE = 'awana_payment_type';
+	const META_ORG_ID        = '_awana_selected_org_id';
+	const META_ORG_MEMBER_ID = '_awana_selected_org_member_id';
+	const META_ORG_TITLE     = '_awana_selected_org_title';
+	const META_PAYMENT_TYPE  = '_awana_payment_type';
+	const META_ORG_NUMBER    = 'org_number';
+	const META_POG_CUSTOMER  = '_pog_customer_id';
+
+	/**
+	 * Track if org info has been rendered to prevent duplicates.
+	 *
+	 * @var bool
+	 */
+	private static $org_info_rendered = false;
+
+	/**
+	 * Initialize hooks.
+	 */
+	public static function init() {
+		$instance = new self();
+		add_filter( 'woocommerce_checkout_fields', array( $instance, 'add_checkout_fields' ) );
+		add_action( 'woocommerce_before_checkout_billing_form', array( $instance, 'render_payment_type_selector' ) );
+		add_action( 'woocommerce_checkout_process', array( $instance, 'validate_checkout_field' ) );
+		add_action( 'woocommerce_checkout_create_order', array( $instance, 'save_checkout_field' ), 10, 2 );
+		add_action( 'wp_enqueue_scripts', array( $instance, 'enqueue_checkout_assets' ) );
+		add_action( 'add_meta_boxes', array( $instance, 'add_order_meta_box' ) );
+		add_action( 'woocommerce_admin_order_data_after_billing_address', array( $instance, 'display_org_info_in_order' ) );
+	}
+
+	/**
+	 * Add organization number field to checkout billing fields.
+	 *
+	 * @param array $fields Checkout fields.
+	 * @return array
+	 */
+	public function add_checkout_fields( $fields ) {
+		$fields['billing']['org_number'] = array(
+			'type'        => 'text',
+			'label'       => __( 'Organisasjonsnummer', 'awana-commerce' ),
+			'placeholder' => __( 'Hvis bedriftskunde', 'awana-commerce' ),
+			'required'    => false,
+			'class'       => array( 'form-row-wide' ),
+			'priority'    => 120,
+		);
+
+		// Make phone number required.
+		if ( isset( $fields['billing']['billing_phone'] ) ) {
+			$fields['billing']['billing_phone']['required'] = true;
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Enqueue checkout assets.
+	 */
+	public function enqueue_checkout_assets() {
+		if ( ! is_checkout() || ! is_user_logged_in() ) {
+			return;
+		}
+
+		$organizations = $this->get_user_organizations();
+		if ( empty( $organizations ) ) {
+			return;
+		}
+
+		$plugin_url = plugin_dir_url( dirname( __FILE__ ) );
+
+		wp_enqueue_style(
+			'awana-checkout-org-select',
+			$plugin_url . 'assets/css/checkout-org-select.css',
+			array(),
+			filemtime( plugin_dir_path( dirname( __FILE__ ) ) . 'assets/css/checkout-org-select.css' )
+		);
+
+		wp_enqueue_script(
+			'awana-checkout-org-select',
+			$plugin_url . 'assets/js/checkout-org-select.js',
+			array( 'jquery' ),
+			filemtime( plugin_dir_path( dirname( __FILE__ ) ) . 'assets/js/checkout-org-select.js' ),
+			true
+		);
+
+		$current_user = wp_get_current_user();
+		wp_localize_script(
+			'awana-checkout-org-select',
+			'awanaOrgData',
+			array(
+				'organizations' => $organizations,
+				'userEmail'     => $current_user->user_email,
+			)
+		);
+	}
+
+	/**
+	 * Render the 3-step checkout wizard.
+	 */
+	public function render_payment_type_selector() {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		$organizations = $this->get_user_organizations();
+
+		if ( empty( $organizations ) ) {
+			return;
+		}
+
+		$options = $this->build_options( $organizations );
+		if ( empty( $options ) ) {
+			return;
+		}
+
+		// Add "Velg organisasjon" placeholder if more than one option.
+		if ( count( $options ) > 1 ) {
+			$options = array( '' => __( 'Velg organisasjon', 'awana-commerce' ) ) + $options;
+		}
+
+		?>
+		<div class="awana-checkout-wizard">
+			<!-- Step Progress Indicator -->
+			<div class="awana-checkout-steps" role="navigation" aria-label="<?php esc_attr_e( 'Checkout progress', 'awana-commerce' ); ?>">
+				<div class="awana-step active" data-step="1" aria-current="step">
+					<span class="awana-step__number">1</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Kundetype', 'awana-commerce' ); ?></span>
+				</div>
+				<div class="awana-step__connector"></div>
+				<div class="awana-step" data-step="2">
+					<span class="awana-step__number">2</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Detaljer', 'awana-commerce' ); ?></span>
+				</div>
+				<div class="awana-step__connector"></div>
+				<div class="awana-step" data-step="3">
+					<span class="awana-step__number">3</span>
+					<span class="awana-step__label"><?php esc_html_e( 'Betaling', 'awana-commerce' ); ?></span>
+				</div>
+			</div>
+
+			<!-- Step 1: Customer Type Selection -->
+			<div class="awana-step-content active" data-step="1">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Hvem handler?', 'awana-commerce' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Velg om du handler som privatperson eller på vegne av en bedrift', 'awana-commerce' ); ?></p>
+
+					<div class="awana-type-cards">
+						<div class="awana-type-card selected" data-type="private" role="button" tabindex="0" aria-pressed="true">
+							<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="private" checked="checked" class="screen-reader-text" />
+							<div class="awana-type-card__icon">
+								<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+									<circle cx="12" cy="7" r="4"></circle>
+								</svg>
+							</div>
+							<div class="awana-type-card__content">
+								<span class="awana-type-card__title"><?php esc_html_e( 'Privatperson', 'awana-commerce' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp som privatperson', 'awana-commerce' ); ?></span>
+							</div>
+						</div>
+
+						<div class="awana-type-card" data-type="organization" role="button" tabindex="0" aria-pressed="false">
+							<input type="radio" name="<?php echo esc_attr( self::FIELD_PAYMENT_TYPE ); ?>" value="organization" class="screen-reader-text" />
+							<div class="awana-type-card__icon">
+								<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+									<polyline points="9 22 9 12 15 12 15 22"></polyline>
+								</svg>
+							</div>
+							<div class="awana-type-card__content">
+								<span class="awana-type-card__title"><?php esc_html_e( 'Bedrift', 'awana-commerce' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp på vegne av en organisasjon', 'awana-commerce' ); ?></span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Organization dropdown (shown when Bedrift selected) -->
+					<div class="awana-org-dropdown-wrapper">
+						<label for="<?php echo esc_attr( self::FIELD_KEY ); ?>"><?php esc_html_e( 'Velg organisasjon', 'awana-commerce' ); ?></label>
+						<select name="<?php echo esc_attr( self::FIELD_KEY ); ?>" id="<?php echo esc_attr( self::FIELD_KEY ); ?>">
+							<?php foreach ( $options as $value => $label ) : ?>
+								<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+
+					<!-- Step 1 Navigation -->
+					<div class="awana-step-nav awana-step-nav--end">
+						<button type="button" class="awana-btn awana-btn-continue" data-next-step="2">
+							<?php esc_html_e( 'Fortsett til detaljer', 'awana-commerce' ); ?>
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Step 2: Billing/Shipping Details -->
+			<div class="awana-step-content" data-step="2">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Fakturadetaljer', 'awana-commerce' ); ?></h3>
+					<p class="awana-step-subtitle awana-org-info-text" style="display: none;"></p>
+					<!-- WooCommerce billing/shipping fields will be moved here via JS -->
+
+					<!-- Step 2 Navigation -->
+					<div class="awana-step-nav">
+						<button type="button" class="awana-btn awana-btn-back" data-prev-step="1">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="15 18 9 12 15 6"></polyline>
+							</svg>
+							<?php esc_html_e( 'Tilbake', 'awana-commerce' ); ?>
+						</button>
+						<button type="button" class="awana-btn awana-btn-continue" data-next-step="3">
+							<?php esc_html_e( 'Fortsett til betaling', 'awana-commerce' ); ?>
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Step 3: Payment -->
+			<div class="awana-step-content" data-step="3">
+				<div class="awana-step-box">
+					<h3 class="awana-step-title"><?php esc_html_e( 'Bestilling og betaling', 'awana-commerce' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Se over bestillingen og velg betalingsmåte', 'awana-commerce' ); ?></p>
+					<!-- WooCommerce payment methods and order review will be moved here via JS -->
+
+					<!-- Step 3 Navigation (back button only, place order is WooCommerce default) -->
+					<div class="awana-step-nav awana-step-nav--single">
+						<button type="button" class="awana-btn awana-btn-back" data-prev-step="2">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="15 18 9 12 15 6"></polyline>
+							</svg>
+							<?php esc_html_e( 'Tilbake', 'awana-commerce' ); ?>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+		// Update JS org data after potential sync to ensure it matches the PHP-rendered dropdown.
+		wp_add_inline_script(
+			'awana-checkout-org-select',
+			'if (typeof awanaOrgData !== "undefined") { awanaOrgData.organizations = ' . wp_json_encode( $organizations, JSON_HEX_TAG | JSON_HEX_AMP ) . '; }',
+			'after'
+		);
+	}
+
+	/**
+	 * Validate organization selection.
+	 */
+	public function validate_checkout_field() {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$payment_type = isset( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ) : 'private';
+
+		// Only validate org selection if payment type is organization.
+		if ( 'organization' !== $payment_type ) {
+			return;
+		}
+
+		$organizations = $this->get_user_organizations();
+		if ( empty( $organizations ) ) {
+			// User submitted organization payment type but has no organizations
+			wc_add_notice( __( 'Organisasjonsbetaling er ikke tilgjengelig. Velg privatperson.', 'awana-commerce' ), 'error' );
+			return;
+		}
+
+		$options = $this->build_options( $organizations );
+		if ( empty( $options ) ) {
+			// No valid options available — field was never rendered.
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$selected = isset( $_POST[ self::FIELD_KEY ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) ) : '';
+
+		// Auto-select if only one option.
+		if ( empty( $selected ) && count( $options ) === 1 ) {
+			$selected = array_key_first( $options );
+		}
+
+		if ( empty( $selected ) ) {
+			wc_add_notice( __( 'Velg organisasjon for å fortsette.', 'awana-commerce' ), 'error' );
+			return;
+		}
+
+		// Validate that the selected organization belongs to the user.
+		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
+			wc_add_notice( __( 'Ugyldig organisasjonsvalg.', 'awana-commerce' ), 'error' );
+		}
+	}
+
+	/**
+	 * Save organization selection to order meta.
+	 *
+	 * @param WC_Order $order Order object.
+	 * @param array    $data  Posted checkout data.
+	 */
+	public function save_checkout_field( $order, $data ) {
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		$organizations = $this->get_user_organizations();
+
+		// Get payment type.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$payment_type = isset( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ) : 'private';
+
+		// Always save payment type.
+		$order->update_meta_data( self::META_PAYMENT_TYPE, $payment_type );
+
+		// If private or no organizations, still save org_number from form if provided.
+		if ( 'private' === $payment_type || empty( $organizations ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! empty( $_POST['org_number'] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$order->update_meta_data( self::META_ORG_NUMBER, sanitize_text_field( wp_unslash( $_POST['org_number'] ) ) );
+			}
+			return;
+		}
+
+		$options  = $this->build_options( $organizations );
+		$selected = '';
+		if ( isset( $data[ self::FIELD_KEY ] ) ) {
+			$selected = wc_clean( $data[ self::FIELD_KEY ] );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		} elseif ( isset( $_POST[ self::FIELD_KEY ] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$selected = wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) );
+		}
+
+		// Auto-select if only one option.
+		if ( empty( $selected ) && count( $options ) === 1 ) {
+			$selected = array_key_first( $options );
+		}
+
+		if ( empty( $selected ) ) {
+			return;
+		}
+
+		// Validate that the selected organization belongs to the user.
+		$selected_org = $this->find_org_by_id( $organizations, $selected );
+		if ( ! $selected_org ) {
+			Awana_Logger::warning( 'Checkout: org not found for save', array(
+				'order_id' => $order->get_id(),
+				'org_id'   => $selected,
+			) );
+			return;
+		}
+
+		Awana_Logger::info( 'Checkout: saving org meta', array(
+			'order_id'  => $order->get_id(),
+			'org_id'    => $selected,
+			'org_keys'  => array_keys( $selected_org ),
+			'orgNumber' => $selected_org['orgNumber'] ?? '(missing)',
+		) );
+
+		// Save organization details.
+		$order->update_meta_data( self::META_ORG_ID, $selected );
+
+		if ( ! empty( $selected_org['memberId'] ) ) {
+			$order->update_meta_data( self::META_ORG_MEMBER_ID, $selected_org['memberId'] );
+		}
+		if ( ! empty( $selected_org['title'] ) ) {
+			$order->update_meta_data( self::META_ORG_TITLE, $selected_org['title'] );
+			$order->set_billing_company( $selected_org['title'] );
+		}
+		if ( ! empty( $selected_org['orgNumber'] ) ) {
+			$order->update_meta_data( self::META_ORG_NUMBER, $selected_org['orgNumber'] );
+		}
+		if ( ! empty( $selected_org['pogCustomerNumber'] ) ) {
+			$order->update_meta_data( self::META_POG_CUSTOMER, $selected_org['pogCustomerNumber'] );
+		}
+	}
+
+	/**
+	 * Add order meta box.
+	 */
+	public function add_order_meta_box() {
+		$screen = $this->get_order_screen_id();
+
+		add_meta_box(
+			'awana-org-info',
+			__( 'Organisasjonsinformasjon', 'awana-commerce' ),
+			array( $this, 'render_order_meta_box' ),
+			$screen,
+			'side',
+			'high'
+		);
+	}
+
+	/**
+	 * Get the correct screen ID for orders (HPOS compatible).
+	 *
+	 * @return string
+	 */
+	private function get_order_screen_id() {
+		if ( class_exists( '\Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController' ) ) {
+			$controller = wc_get_container()->get( \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class );
+			if ( $controller && method_exists( $controller, 'custom_orders_table_usage_is_enabled' ) && $controller->custom_orders_table_usage_is_enabled() ) {
+				return wc_get_page_screen_id( 'shop-order' );
+			}
+		}
+		return 'shop_order';
+	}
+
+	/**
+	 * Render order meta box.
+	 *
+	 * @param WP_Post|WC_Order $post_or_order Post object or WC_Order.
+	 */
+	public function render_order_meta_box( $post_or_order ) {
+		$order = $this->get_order_from_param( $post_or_order );
+		if ( ! $order ) {
+			echo '<p>' . esc_html__( 'Ordre ikke funnet.', 'awana-commerce' ) . '</p>';
+			return;
+		}
+
+		self::$org_info_rendered = true;
+		$this->output_org_info( $order );
+	}
+
+	/**
+	 * Display organization info in order (HPOS fallback).
+	 *
+	 * @param WC_Order $order Order object.
+	 */
+	public function display_org_info_in_order( $order ) {
+		// Only show if meta box isn't rendering (fallback for some themes).
+		if ( ! self::$org_info_rendered && doing_action( 'woocommerce_admin_order_data_after_billing_address' ) ) {
+			// Meta box should handle display, but output inline if needed.
+			// Check if we have org data.
+			$payment_type = $order->get_meta( self::META_PAYMENT_TYPE );
+			$org_id       = $order->get_meta( self::META_ORG_ID );
+
+			// Skip if no org data.
+			if ( empty( $payment_type ) && empty( $org_id ) ) {
+				return;
+			}
+
+			// Output org info inline.
+			$this->output_org_info( $order );
+		}
+	}
+
+	/**
+	 * Output organization info HTML.
+	 *
+	 * @param WC_Order $order Order object.
+	 */
+	private function output_org_info( $order ) {
+		$payment_type = $order->get_meta( self::META_PAYMENT_TYPE );
+		$org_id       = $order->get_meta( self::META_ORG_ID );
+
+		// Backward compatibility: detect org orders without payment type.
+		if ( empty( $payment_type ) && ! empty( $org_id ) ) {
+			$payment_type = 'organization';
+		}
+
+		// Default to private if no data.
+		if ( empty( $payment_type ) ) {
+			$payment_type = 'private';
+		}
+
+		echo '<div class="awana-org-meta-box">';
+
+		// Payment type badge.
+		$badge_class = 'organization' === $payment_type ? 'organization' : 'private';
+		$badge_text  = 'organization' === $payment_type ? __( 'Organisasjon', 'awana-commerce' ) : __( 'Privat', 'awana-commerce' );
+
+		echo '<p>';
+		echo '<strong>' . esc_html__( 'Betalingstype:', 'awana-commerce' ) . '</strong> ';
+		echo '<span class="awana-payment-type-badge ' . esc_attr( $badge_class ) . '">' . esc_html( $badge_text ) . '</span>';
+		echo '</p>';
+
+		// Show organization details if organization order.
+		if ( 'organization' === $payment_type && ! empty( $org_id ) ) {
+			echo '<hr />';
+
+			$org_title      = $order->get_meta( self::META_ORG_TITLE );
+			$org_number     = $order->get_meta( self::META_ORG_NUMBER );
+			$pog_customer   = $order->get_meta( self::META_POG_CUSTOMER );
+			$org_member_id  = $order->get_meta( self::META_ORG_MEMBER_ID );
+
+			if ( ! empty( $org_title ) ) {
+				echo '<p><strong>' . esc_html__( 'Organisasjon:', 'awana-commerce' ) . '</strong> ' . esc_html( $org_title ) . '</p>';
+			}
+
+			if ( ! empty( $org_number ) ) {
+				echo '<p><strong>' . esc_html__( 'Org.nummer:', 'awana-commerce' ) . '</strong> ' . esc_html( $org_number ) . '</p>';
+			}
+
+			if ( ! empty( $pog_customer ) ) {
+				echo '<p><strong>' . esc_html__( 'POG-kunde:', 'awana-commerce' ) . '</strong> ' . esc_html( $pog_customer ) . '</p>';
+			}
+
+			if ( ! empty( $org_id ) ) {
+				echo '<p><strong>' . esc_html__( 'Org.ID:', 'awana-commerce' ) . '</strong> <code>' . esc_html( $org_id ) . '</code></p>';
+			}
+
+			if ( ! empty( $org_member_id ) ) {
+				echo '<p><strong>' . esc_html__( 'Medlem-ID:', 'awana-commerce' ) . '</strong> <code>' . esc_html( $org_member_id ) . '</code></p>';
+			}
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Get WC_Order from post or order parameter.
+	 *
+	 * @param WP_Post|WC_Order $post_or_order Post object or WC_Order.
+	 * @return WC_Order|null
+	 */
+	private function get_order_from_param( $post_or_order ) {
+		if ( $post_or_order instanceof WC_Order ) {
+			return $post_or_order;
+		}
+
+		if ( $post_or_order instanceof WP_Post ) {
+			return wc_get_order( $post_or_order->ID );
+		}
+
+		// HPOS might pass order ID directly.
+		if ( is_numeric( $post_or_order ) ) {
+			return wc_get_order( $post_or_order );
+		}
+
+		// Try to get from global.
+		global $theorder;
+		if ( $theorder instanceof WC_Order ) {
+			return $theorder;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get organizations for the current user.
+	 *
+	 * @return array
+	 */
+	private function get_user_organizations() {
+		// Development mode: return sample data for testing.
+		if ( defined( 'AWANA_USE_SAMPLE_ORGS' ) && AWANA_USE_SAMPLE_ORGS ) {
+			return $this->get_sample_organizations();
+		}
+
+		$user_id = get_current_user_id();
+		if ( empty( $user_id ) ) {
+			return array();
+		}
+
+		$stored = get_user_meta( $user_id, '_awana_organizations', true );
+		if ( empty( $stored ) ) {
+			return array();
+		}
+
+		$decoded = $stored;
+		if ( is_string( $stored ) ) {
+			$decoded = json_decode( $stored, true );
+			if ( json_last_error() !== JSON_ERROR_NONE ) {
+				return array();
+			}
+		}
+
+		if ( is_array( $decoded ) && isset( $decoded['organizations'] ) && is_array( $decoded['organizations'] ) ) {
+			return $decoded['organizations'];
+		}
+
+		if ( is_array( $decoded ) && isset( $decoded[0] ) && is_array( $decoded[0] ) ) {
+			return $decoded;
+		}
+
+		return array();
+	}
+
+	/**
+	 * Build select options from organizations.
+	 *
+	 * @param array $organizations Organizations list.
+	 * @return array
+	 */
+	private function build_options( $organizations ) {
+		$options = array();
+		foreach ( $organizations as $org ) {
+			if ( empty( $org['organizationId'] ) ) {
+				continue;
+			}
+			$label = ! empty( $org['title'] ) ? $org['title'] : $org['organizationId'];
+			if ( ! empty( $org['orgNumber'] ) ) {
+				$label .= ' (' . $org['orgNumber'] . ')';
+			}
+			$options[ (string) $org['organizationId'] ] = $label;
+		}
+		return $options;
+	}
+
+	/**
+	 * Find organization by ID.
+	 *
+	 * @param array  $organizations Organizations list.
+	 * @param string $org_id Organization ID.
+	 * @return array|null
+	 */
+	private function find_org_by_id( $organizations, $org_id ) {
+		foreach ( $organizations as $org ) {
+			if ( ! empty( $org['organizationId'] ) && (string) $org['organizationId'] === (string) $org_id ) {
+				return $org;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get sample organizations for development/testing.
+	 *
+	 * Enable by adding to wp-config.php:
+	 * define( 'AWANA_USE_SAMPLE_ORGS', true );
+	 *
+	 * @return array
+	 */
+	private function get_sample_organizations() {
+		return array(
+			array(
+				'organizationId'     => 'test-org-001',
+				'memberId'           => 'member-001',
+				'title'              => 'Test Organisasjon AS',
+				'orgNumber'          => '999888777',
+				'pogCustomerNumber'  => '10001',
+				'billingAddress'     => array(
+					'street'     => 'Testveien 1',
+					'postalCode' => '0150',
+					'city'       => 'Oslo',
+				),
+				'billingEmail'       => 'faktura@test.no',
+				'billingContactName' => 'Test Person',
+				'billingPhone'       => '+47 123 45 678',
+				'userRole'           => 'admin',
+			),
+			array(
+				'organizationId'     => 'test-org-002',
+				'memberId'           => 'member-002',
+				'title'              => 'Andre Bedrift AS',
+				'orgNumber'          => '888777666',
+				'pogCustomerNumber'  => '10002',
+				'billingAddress'     => array(
+					'street'     => 'Annengate 5',
+					'postalCode' => '5003',
+					'city'       => 'Bergen',
+				),
+				'billingEmail'       => 'faktura@andre.no',
+				'billingContactName' => 'Ola Nordmann',
+				'billingPhone'       => '+47 987 65 432',
+				'userRole'           => 'member',
+			),
+		);
+	}
+}
