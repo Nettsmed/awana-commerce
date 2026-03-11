@@ -264,13 +264,14 @@ class Awana_Debug {
 				var $btn = $(this);
 				var $result = $("#' . esc_js( $result_id ) . '");
 				$btn.prop("disabled", true).text("' . esc_js( $loading_txt ) . '");
-				$result.html("Loading...").show();
+				$result.text("Loading...").show();
 				doAjax("' . esc_js( $action ) . '", {}, function(response) {
 					$btn.prop("disabled", false).text("' . esc_js( $ready_txt ) . '");
 					if (response.success) {
 						$result.html(response.data.html).show();
 					} else {
-						$result.html("<span style=\"color:red;\">Error: " + (response.data ? response.data.message : "Unknown error") + "</span>").show();
+						var errMsg = response.data ? response.data.message : "Unknown error";
+						$result.empty().append($("<span>").css("color", "red").text("Error: " + errMsg)).show();
 					}
 				});
 			});';
