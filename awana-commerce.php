@@ -256,6 +256,29 @@ add_action( 'woocommerce_after_order_object_save', function( $order ) {
 	}
 }, 10, 1 );
 
+/**
+ * Create invoice in Firebase CRM for B2B checkout orders after Nets payment is confirmed.
+ * This bridges B2B checkout orders into the existing CRM/POG pipeline.
+ */
+add_action( 'woocommerce_payment_complete', function( $order_id ) {
+	$order = wc_get_order( $order_id );
+	if ( ! $order ) {
+		return;
+	}
+
+	$payment_type = $order->get_meta( '_awana_payment_type', true );
+	if ( 'organization' !== $payment_type ) {
+		return;
+	}
+
+	// Skip if already synced
+	if ( $order->get_meta( '_awana_checkout_invoice_synced', true ) ) {
+		return;
+	}
+
+	Awana_CRM_Webhook::notify_checkout_invoice_to_crm( $order );
+}, 10, 1 );
+
 // Declare WooCommerce HPOS (High-Performance Order Storage) compatibility
 add_action( 'before_woocommerce_init', function() {
 	if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
