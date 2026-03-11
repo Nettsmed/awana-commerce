@@ -568,7 +568,7 @@
 
 				if (name) {
 					var $original = $('form.checkout').find('[name="' + name + '"]').not(self.$wizard.find('[name="' + name + '"]'));
-					if ($original.length && $original.val()) {
+					if ($original.length && $original.val() !== undefined) {
 						$clone.val($original.val());
 					}
 				}
@@ -672,7 +672,12 @@
 
 			// Contact fields
 			this.setFieldValue('billing_phone', org.billingPhone || '');
-			this.setFieldValue('billing_email', org.billingEmail || '');
+
+			var emailValue = org.billingEmail || '';
+			if (!emailValue && typeof awanaOrgData !== 'undefined' && awanaOrgData.userEmail) {
+				emailValue = awanaOrgData.userEmail;
+			}
+			this.setFieldValue('billing_email', emailValue);
 		},
 
 		/**
@@ -809,9 +814,8 @@
 			if ($existing.length) {
 				$existing.text(message);
 			} else {
-				$box.find('.awana-step-title').after(
-					'<div class="awana-error">' + message + '</div>'
-				);
+				var $error = $('<div class="awana-error"></div>').text(message);
+				$box.find('.awana-step-title').after($error);
 			}
 
 			// Scroll to error

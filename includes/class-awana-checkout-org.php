@@ -73,11 +73,13 @@ class Awana_Checkout_Org {
 			true
 		);
 
+		$current_user = wp_get_current_user();
 		wp_localize_script(
 			'awana-checkout-org-select',
 			'awanaOrgData',
 			array(
 				'organizations' => $organizations,
+				'userEmail'     => $current_user->user_email,
 			)
 		);
 	}
@@ -260,7 +262,12 @@ class Awana_Checkout_Org {
 			return;
 		}
 
-		$options  = $this->build_options( $organizations );
+		$options = $this->build_options( $organizations );
+		if ( empty( $options ) ) {
+			// No valid options available — field was never rendered.
+			return;
+		}
+
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$selected = isset( $_POST[ self::FIELD_KEY ] ) ? wc_clean( wp_unslash( $_POST[ self::FIELD_KEY ] ) ) : '';
 
@@ -331,8 +338,19 @@ class Awana_Checkout_Org {
 		// Validate that the selected organization belongs to the user.
 		$selected_org = $this->find_org_by_id( $organizations, $selected );
 		if ( ! $selected_org ) {
+			Awana_Logger::warning( 'Checkout: org not found for save', array(
+				'order_id' => $order->get_id(),
+				'org_id'   => $selected,
+			) );
 			return;
 		}
+
+		Awana_Logger::info( 'Checkout: saving org meta', array(
+			'order_id'  => $order->get_id(),
+			'org_id'    => $selected,
+			'org_keys'  => array_keys( $selected_org ),
+			'orgNumber' => $selected_org['orgNumber'] ?? '(missing)',
+		) );
 
 		// Save organization details.
 		$order->update_meta_data( self::META_ORG_ID, $selected );
