@@ -390,6 +390,7 @@ class Awana_Checkout_Org {
 		}
 		if ( ! empty( $selected_org['title'] ) ) {
 			$order->update_meta_data( self::META_ORG_TITLE, $selected_org['title'] );
+			$order->set_billing_company( $selected_org['title'] );
 		}
 		if ( ! empty( $selected_org['orgNumber'] ) ) {
 			$order->update_meta_data( self::META_ORG_NUMBER, $selected_org['orgNumber'] );
