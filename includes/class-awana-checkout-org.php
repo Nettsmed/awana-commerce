@@ -2,7 +2,7 @@
 /**
  * Checkout organization selector for logged-in users.
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -53,8 +53,8 @@ class Awana_Checkout_Org {
 	public function add_checkout_fields( $fields ) {
 		$fields['billing']['org_number'] = array(
 			'type'        => 'text',
-			'label'       => __( 'Organisasjonsnummer', 'awana-digital-sync' ),
-			'placeholder' => __( 'Hvis bedriftskunde', 'awana-digital-sync' ),
+			'label'       => __( 'Organisasjonsnummer', 'awana-commerce' ),
+			'placeholder' => __( 'Hvis bedriftskunde', 'awana-commerce' ),
 			'required'    => false,
 			'class'       => array( 'form-row-wide' ),
 			'priority'    => 120,
@@ -130,34 +130,34 @@ class Awana_Checkout_Org {
 
 		// Add "Velg organisasjon" placeholder if more than one option.
 		if ( count( $options ) > 1 ) {
-			$options = array( '' => __( 'Velg organisasjon', 'awana-digital-sync' ) ) + $options;
+			$options = array( '' => __( 'Velg organisasjon', 'awana-commerce' ) ) + $options;
 		}
 
 		?>
 		<div class="awana-checkout-wizard">
 			<!-- Step Progress Indicator -->
-			<div class="awana-checkout-steps" role="navigation" aria-label="<?php esc_attr_e( 'Checkout progress', 'awana-digital-sync' ); ?>">
+			<div class="awana-checkout-steps" role="navigation" aria-label="<?php esc_attr_e( 'Checkout progress', 'awana-commerce' ); ?>">
 				<div class="awana-step active" data-step="1" aria-current="step">
 					<span class="awana-step__number">1</span>
-					<span class="awana-step__label"><?php esc_html_e( 'Kundetype', 'awana-digital-sync' ); ?></span>
+					<span class="awana-step__label"><?php esc_html_e( 'Kundetype', 'awana-commerce' ); ?></span>
 				</div>
 				<div class="awana-step__connector"></div>
 				<div class="awana-step" data-step="2">
 					<span class="awana-step__number">2</span>
-					<span class="awana-step__label"><?php esc_html_e( 'Detaljer', 'awana-digital-sync' ); ?></span>
+					<span class="awana-step__label"><?php esc_html_e( 'Detaljer', 'awana-commerce' ); ?></span>
 				</div>
 				<div class="awana-step__connector"></div>
 				<div class="awana-step" data-step="3">
 					<span class="awana-step__number">3</span>
-					<span class="awana-step__label"><?php esc_html_e( 'Betaling', 'awana-digital-sync' ); ?></span>
+					<span class="awana-step__label"><?php esc_html_e( 'Betaling', 'awana-commerce' ); ?></span>
 				</div>
 			</div>
 
 			<!-- Step 1: Customer Type Selection -->
 			<div class="awana-step-content active" data-step="1">
 				<div class="awana-step-box">
-					<h3 class="awana-step-title"><?php esc_html_e( 'Hvem handler?', 'awana-digital-sync' ); ?></h3>
-					<p class="awana-step-subtitle"><?php esc_html_e( 'Velg om du handler som privatperson eller på vegne av en bedrift', 'awana-digital-sync' ); ?></p>
+					<h3 class="awana-step-title"><?php esc_html_e( 'Hvem handler?', 'awana-commerce' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Velg om du handler som privatperson eller på vegne av en bedrift', 'awana-commerce' ); ?></p>
 
 					<div class="awana-type-cards">
 						<div class="awana-type-card selected" data-type="private" role="button" tabindex="0" aria-pressed="true">
@@ -169,8 +169,8 @@ class Awana_Checkout_Org {
 								</svg>
 							</div>
 							<div class="awana-type-card__content">
-								<span class="awana-type-card__title"><?php esc_html_e( 'Privatperson', 'awana-digital-sync' ); ?></span>
-								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp som privatperson', 'awana-digital-sync' ); ?></span>
+								<span class="awana-type-card__title"><?php esc_html_e( 'Privatperson', 'awana-commerce' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp som privatperson', 'awana-commerce' ); ?></span>
 							</div>
 						</div>
 
@@ -183,15 +183,15 @@ class Awana_Checkout_Org {
 								</svg>
 							</div>
 							<div class="awana-type-card__content">
-								<span class="awana-type-card__title"><?php esc_html_e( 'Bedrift', 'awana-digital-sync' ); ?></span>
-								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp på vegne av en organisasjon', 'awana-digital-sync' ); ?></span>
+								<span class="awana-type-card__title"><?php esc_html_e( 'Bedrift', 'awana-commerce' ); ?></span>
+								<span class="awana-type-card__description"><?php esc_html_e( 'Kjøp på vegne av en organisasjon', 'awana-commerce' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<!-- Organization dropdown (shown when Bedrift selected) -->
 					<div class="awana-org-dropdown-wrapper">
-						<label for="<?php echo esc_attr( self::FIELD_KEY ); ?>"><?php esc_html_e( 'Velg organisasjon', 'awana-digital-sync' ); ?></label>
+						<label for="<?php echo esc_attr( self::FIELD_KEY ); ?>"><?php esc_html_e( 'Velg organisasjon', 'awana-commerce' ); ?></label>
 						<select name="<?php echo esc_attr( self::FIELD_KEY ); ?>" id="<?php echo esc_attr( self::FIELD_KEY ); ?>">
 							<?php foreach ( $options as $value => $label ) : ?>
 								<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
@@ -202,7 +202,7 @@ class Awana_Checkout_Org {
 					<!-- Step 1 Navigation -->
 					<div class="awana-step-nav awana-step-nav--end">
 						<button type="button" class="awana-btn awana-btn-continue" data-next-step="2">
-							<?php esc_html_e( 'Fortsett til detaljer', 'awana-digital-sync' ); ?>
+							<?php esc_html_e( 'Fortsett til detaljer', 'awana-commerce' ); ?>
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 								<polyline points="9 18 15 12 9 6"></polyline>
 							</svg>
@@ -214,7 +214,7 @@ class Awana_Checkout_Org {
 			<!-- Step 2: Billing/Shipping Details -->
 			<div class="awana-step-content" data-step="2">
 				<div class="awana-step-box">
-					<h3 class="awana-step-title"><?php esc_html_e( 'Fakturadetaljer', 'awana-digital-sync' ); ?></h3>
+					<h3 class="awana-step-title"><?php esc_html_e( 'Fakturadetaljer', 'awana-commerce' ); ?></h3>
 					<p class="awana-step-subtitle awana-org-info-text" style="display: none;"></p>
 					<!-- WooCommerce billing/shipping fields will be moved here via JS -->
 
@@ -224,10 +224,10 @@ class Awana_Checkout_Org {
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 								<polyline points="15 18 9 12 15 6"></polyline>
 							</svg>
-							<?php esc_html_e( 'Tilbake', 'awana-digital-sync' ); ?>
+							<?php esc_html_e( 'Tilbake', 'awana-commerce' ); ?>
 						</button>
 						<button type="button" class="awana-btn awana-btn-continue" data-next-step="3">
-							<?php esc_html_e( 'Fortsett til betaling', 'awana-digital-sync' ); ?>
+							<?php esc_html_e( 'Fortsett til betaling', 'awana-commerce' ); ?>
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 								<polyline points="9 18 15 12 9 6"></polyline>
 							</svg>
@@ -239,8 +239,8 @@ class Awana_Checkout_Org {
 			<!-- Step 3: Payment -->
 			<div class="awana-step-content" data-step="3">
 				<div class="awana-step-box">
-					<h3 class="awana-step-title"><?php esc_html_e( 'Bestilling og betaling', 'awana-digital-sync' ); ?></h3>
-					<p class="awana-step-subtitle"><?php esc_html_e( 'Se over bestillingen og velg betalingsmåte', 'awana-digital-sync' ); ?></p>
+					<h3 class="awana-step-title"><?php esc_html_e( 'Bestilling og betaling', 'awana-commerce' ); ?></h3>
+					<p class="awana-step-subtitle"><?php esc_html_e( 'Se over bestillingen og velg betalingsmåte', 'awana-commerce' ); ?></p>
 					<!-- WooCommerce payment methods and order review will be moved here via JS -->
 
 					<!-- Step 3 Navigation (back button only, place order is WooCommerce default) -->
@@ -249,7 +249,7 @@ class Awana_Checkout_Org {
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 								<polyline points="15 18 9 12 15 6"></polyline>
 							</svg>
-							<?php esc_html_e( 'Tilbake', 'awana-digital-sync' ); ?>
+							<?php esc_html_e( 'Tilbake', 'awana-commerce' ); ?>
 						</button>
 					</div>
 				</div>
@@ -283,7 +283,7 @@ class Awana_Checkout_Org {
 		$organizations = $this->get_user_organizations();
 		if ( empty( $organizations ) ) {
 			// User submitted organization payment type but has no organizations
-			wc_add_notice( __( 'Organisasjonsbetaling er ikke tilgjengelig. Velg privatperson.', 'awana-digital-sync' ), 'error' );
+			wc_add_notice( __( 'Organisasjonsbetaling er ikke tilgjengelig. Velg privatperson.', 'awana-commerce' ), 'error' );
 			return;
 		}
 
@@ -302,13 +302,13 @@ class Awana_Checkout_Org {
 		}
 
 		if ( empty( $selected ) ) {
-			wc_add_notice( __( 'Velg organisasjon for å fortsette.', 'awana-digital-sync' ), 'error' );
+			wc_add_notice( __( 'Velg organisasjon for å fortsette.', 'awana-commerce' ), 'error' );
 			return;
 		}
 
 		// Validate that the selected organization belongs to the user.
 		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
-			wc_add_notice( __( 'Ugyldig organisasjonsvalg.', 'awana-digital-sync' ), 'error' );
+			wc_add_notice( __( 'Ugyldig organisasjonsvalg.', 'awana-commerce' ), 'error' );
 		}
 	}
 
@@ -407,7 +407,7 @@ class Awana_Checkout_Org {
 
 		add_meta_box(
 			'awana-org-info',
-			__( 'Organisasjonsinformasjon', 'awana-digital-sync' ),
+			__( 'Organisasjonsinformasjon', 'awana-commerce' ),
 			array( $this, 'render_order_meta_box' ),
 			$screen,
 			'side',
@@ -438,7 +438,7 @@ class Awana_Checkout_Org {
 	public function render_order_meta_box( $post_or_order ) {
 		$order = $this->get_order_from_param( $post_or_order );
 		if ( ! $order ) {
-			echo '<p>' . esc_html__( 'Ordre ikke funnet.', 'awana-digital-sync' ) . '</p>';
+			echo '<p>' . esc_html__( 'Ordre ikke funnet.', 'awana-commerce' ) . '</p>';
 			return;
 		}
 
@@ -492,10 +492,10 @@ class Awana_Checkout_Org {
 
 		// Payment type badge.
 		$badge_class = 'organization' === $payment_type ? 'organization' : 'private';
-		$badge_text  = 'organization' === $payment_type ? __( 'Organisasjon', 'awana-digital-sync' ) : __( 'Privat', 'awana-digital-sync' );
+		$badge_text  = 'organization' === $payment_type ? __( 'Organisasjon', 'awana-commerce' ) : __( 'Privat', 'awana-commerce' );
 
 		echo '<p>';
-		echo '<strong>' . esc_html__( 'Betalingstype:', 'awana-digital-sync' ) . '</strong> ';
+		echo '<strong>' . esc_html__( 'Betalingstype:', 'awana-commerce' ) . '</strong> ';
 		echo '<span class="awana-payment-type-badge ' . esc_attr( $badge_class ) . '">' . esc_html( $badge_text ) . '</span>';
 		echo '</p>';
 
@@ -509,23 +509,23 @@ class Awana_Checkout_Org {
 			$org_member_id  = $order->get_meta( self::META_ORG_MEMBER_ID );
 
 			if ( ! empty( $org_title ) ) {
-				echo '<p><strong>' . esc_html__( 'Organisasjon:', 'awana-digital-sync' ) . '</strong> ' . esc_html( $org_title ) . '</p>';
+				echo '<p><strong>' . esc_html__( 'Organisasjon:', 'awana-commerce' ) . '</strong> ' . esc_html( $org_title ) . '</p>';
 			}
 
 			if ( ! empty( $org_number ) ) {
-				echo '<p><strong>' . esc_html__( 'Org.nummer:', 'awana-digital-sync' ) . '</strong> ' . esc_html( $org_number ) . '</p>';
+				echo '<p><strong>' . esc_html__( 'Org.nummer:', 'awana-commerce' ) . '</strong> ' . esc_html( $org_number ) . '</p>';
 			}
 
 			if ( ! empty( $pog_customer ) ) {
-				echo '<p><strong>' . esc_html__( 'POG-kunde:', 'awana-digital-sync' ) . '</strong> ' . esc_html( $pog_customer ) . '</p>';
+				echo '<p><strong>' . esc_html__( 'POG-kunde:', 'awana-commerce' ) . '</strong> ' . esc_html( $pog_customer ) . '</p>';
 			}
 
 			if ( ! empty( $org_id ) ) {
-				echo '<p><strong>' . esc_html__( 'Org.ID:', 'awana-digital-sync' ) . '</strong> <code>' . esc_html( $org_id ) . '</code></p>';
+				echo '<p><strong>' . esc_html__( 'Org.ID:', 'awana-commerce' ) . '</strong> <code>' . esc_html( $org_id ) . '</code></p>';
 			}
 
 			if ( ! empty( $org_member_id ) ) {
-				echo '<p><strong>' . esc_html__( 'Medlem-ID:', 'awana-digital-sync' ) . '</strong> <code>' . esc_html( $org_member_id ) . '</code></p>';
+				echo '<p><strong>' . esc_html__( 'Medlem-ID:', 'awana-commerce' ) . '</strong> <code>' . esc_html( $org_member_id ) . '</code></p>';
 			}
 		}
 

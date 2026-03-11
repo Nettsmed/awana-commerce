@@ -1,16 +1,16 @@
 <?php
 /**
- * Plugin Name: Awana Digital Sync
+ * Plugin Name: Awana Commerce
  * Plugin URI: https://awana.no
- * Description: Syncs invoices from Digital/CRM to WooCommerce as guest orders and handles POG/Integrera sync updates.
- * Version: 1.1.3
+ * Description: WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
+ * Version: 1.2.0
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * WC requires at least: 5.0
  * WC tested up to: 8.0
- * Text Domain: awana-digital-sync
+ * Text Domain: awana-commerce
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
@@ -28,10 +28,21 @@ if ( ! in_array( 'woocommerce/woocommerce.php', $active_plugins, true ) ) {
 	return;
 }
 
-// Define plugin constants
-define( 'AWANA_DIGITAL_SYNC_VERSION', '1.1.3' );
-define( 'AWANA_DIGITAL_SYNC_PATH', plugin_dir_path( __FILE__ ) );
-define( 'AWANA_DIGITAL_SYNC_URL', plugin_dir_url( __FILE__ ) );
+// Define plugin constants.
+define( 'AWANA_COMMERCE_VERSION', '1.2.0' );
+define( 'AWANA_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
+define( 'AWANA_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
+
+// Backward compatibility.
+if ( ! defined( 'AWANA_DIGITAL_SYNC_VERSION' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_VERSION', AWANA_COMMERCE_VERSION );
+}
+if ( ! defined( 'AWANA_DIGITAL_SYNC_PATH' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_PATH', AWANA_COMMERCE_PATH );
+}
+if ( ! defined( 'AWANA_DIGITAL_SYNC_URL' ) ) {
+	define( 'AWANA_DIGITAL_SYNC_URL', AWANA_COMMERCE_URL );
+}
 
 // Include required files
 include_once 'includes/class-awana-logger.php';

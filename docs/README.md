@@ -1,10 +1,10 @@
-# Awana Digital Sync
+# Awana Commerce
 
-WordPress plugin that syncs invoices from Digital/CRM (Firebase) to WooCommerce as guest orders and handles POG/Integrera sync updates.
+WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
 
 ## Installation
 
-1. Copy the `awana-digital-sync` folder to `wp-content/plugins/`
+1. Copy the `awana-commerce` folder to `wp-content/plugins/`
 2. Activate the plugin in WordPress admin
 3. Add the API key to `wp-config.php`:
 

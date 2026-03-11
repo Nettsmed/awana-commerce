@@ -2,15 +2,15 @@
 
 ## 1. Install Plugin
 
-Copy the `awana-digital-sync` folder to your WordPress installation:
+Copy the `awana-commerce` folder to your WordPress installation:
 ```
-wp-content/plugins/awana-digital-sync/
+wp-content/plugins/awana-commerce/
 ```
 
 ## 2. Activate Plugin
 
 1. Go to **WordPress Admin → Plugins**
-2. Find "Awana Digital Sync"
+2. Find "Awana Commerce"
 3. Click "Activate"
 
 ## 3. Configure API Key
@@ -18,7 +18,7 @@ wp-content/plugins/awana-digital-sync/
 Add the following line to your `wp-config.php` file (before the "That's all, stop editing!" line):
 
 ```php
-// Awana Digital Sync API Key
+// Awana Commerce API Key
 define( 'AWANA_DIGITAL_API_KEY', 'your-super-secret-api-key-here' );
 ```
 

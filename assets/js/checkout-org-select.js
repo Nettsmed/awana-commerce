@@ -2,7 +2,7 @@
  * 3-Step Checkout Wizard JavaScript
  * Full-width layout with WooCommerce content integration
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 (function($) {

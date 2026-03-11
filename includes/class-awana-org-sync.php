@@ -2,7 +2,7 @@
 /**
  * Firebase organization sync with TTL-based refresh
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

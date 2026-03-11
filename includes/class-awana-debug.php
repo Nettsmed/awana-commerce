@@ -2,7 +2,7 @@
 /**
  * Debug page for B2B Org Sync
  *
- * @package Awana_Digital_Sync
+ * @package Awana_Commerce
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -44,8 +44,8 @@ class Awana_Debug {
 	public function add_admin_menu() {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Awana Org Debug', 'awana-digital-sync' ),
-			__( 'Awana Org Debug', 'awana-digital-sync' ),
+			__( 'Awana Org Debug', 'awana-commerce' ),
+			__( 'Awana Org Debug', 'awana-commerce' ),
 			'manage_woocommerce',
 			'awana-org-debug',
 			array( $this, 'render_admin_page' )
@@ -208,41 +208,41 @@ class Awana_Debug {
 			'awana-debug-fetch-firebase',
 			'awana_debug_fetch_firebase',
 			'awana-debug-firebase-result',
-			__( 'Fetching...', 'awana-digital-sync' ),
-			__( 'Fetch from Firebase', 'awana-digital-sync' )
+			__( 'Fetching...', 'awana-commerce' ),
+			__( 'Fetch from Firebase', 'awana-commerce' )
 		);
 		$handlers[] = $this->get_js_reload_button(
 			'awana-debug-force-sync',
 			'awana_debug_force_sync',
-			__( 'Syncing...', 'awana-digital-sync' ),
-			__( 'Force Sync', 'awana-digital-sync' )
+			__( 'Syncing...', 'awana-commerce' ),
+			__( 'Force Sync', 'awana-commerce' )
 		);
 		$handlers[] = $this->get_js_reload_button(
 			'awana-debug-clear-cache',
 			'awana_debug_clear_cache',
-			__( 'Clearing...', 'awana-digital-sync' ),
-			__( 'Clear Cache', 'awana-digital-sync' )
+			__( 'Clearing...', 'awana-commerce' ),
+			__( 'Clear Cache', 'awana-commerce' )
 		);
 		$handlers[] = $this->get_js_result_button(
 			'awana-debug-compare',
 			'awana_debug_compare',
 			'awana-debug-compare-result',
-			__( 'Comparing...', 'awana-digital-sync' ),
-			__( 'Compare Firebase vs Cache', 'awana-digital-sync' )
+			__( 'Comparing...', 'awana-commerce' ),
+			__( 'Compare Firebase vs Cache', 'awana-commerce' )
 		);
 		$handlers[] = $this->get_js_result_button(
 			'awana-debug-test-connection',
 			'awana_debug_test_connection',
 			'awana-debug-connection-result',
-			__( 'Testing...', 'awana-digital-sync' ),
-			__( 'Test Firebase Connection', 'awana-digital-sync' )
+			__( 'Testing...', 'awana-commerce' ),
+			__( 'Test Firebase Connection', 'awana-commerce' )
 		);
 		$handlers[] = $this->get_js_result_button(
 			'awana-debug-refresh-log',
 			'awana_debug_refresh_log',
 			'awana-debug-log-result',
-			__( 'Refreshing...', 'awana-digital-sync' ),
-			__( 'Refresh Log', 'awana-digital-sync' )
+			__( 'Refreshing...', 'awana-commerce' ),
+			__( 'Refresh Log', 'awana-commerce' )
 		);
 
 		return implode( "\n", $handlers );
@@ -361,21 +361,21 @@ class Awana_Debug {
 			$("#awana-debug-update-uid").on("click", function() {
 				var $btn = $(this);
 				var newUid = $("#awana-debug-firebase-uid-input").val().trim();
-				if (!newUid) { alert("' . esc_js( __( 'Please enter a Firebase UID', 'awana-digital-sync' ) ) . '"); return; }
-				if (!confirm("' . esc_js( __( 'Are you sure you want to update the Firebase UID?', 'awana-digital-sync' ) ) . '")) { return; }
-				$btn.prop("disabled", true).text("' . esc_js( __( 'Updating...', 'awana-digital-sync' ) ) . '");
+				if (!newUid) { alert("' . esc_js( __( 'Please enter a Firebase UID', 'awana-commerce' ) ) . '"); return; }
+				if (!confirm("' . esc_js( __( 'Are you sure you want to update the Firebase UID?', 'awana-commerce' ) ) . '")) { return; }
+				$btn.prop("disabled", true).text("' . esc_js( __( 'Updating...', 'awana-commerce' ) ) . '");
 				doAjax("awana_debug_update_firebase_uid", {firebase_uid: newUid}, function(response) {
-					$btn.prop("disabled", false).text("' . esc_js( __( 'Update Firebase UID', 'awana-digital-sync' ) ) . '");
+					$btn.prop("disabled", false).text("' . esc_js( __( 'Update Firebase UID', 'awana-commerce' ) ) . '");
 					if (response.success) { location.reload(); }
 					else { alert(response.data.message); }
 				});
 			});
 			$("#awana-debug-clear-uid").on("click", function() {
-				if (!confirm("' . esc_js( __( 'Are you sure you want to clear the Firebase UID?', 'awana-digital-sync' ) ) . '")) { return; }
+				if (!confirm("' . esc_js( __( 'Are you sure you want to clear the Firebase UID?', 'awana-commerce' ) ) . '")) { return; }
 				var $btn = $(this);
-				$btn.prop("disabled", true).text("' . esc_js( __( 'Clearing...', 'awana-digital-sync' ) ) . '");
+				$btn.prop("disabled", true).text("' . esc_js( __( 'Clearing...', 'awana-commerce' ) ) . '");
 				doAjax("awana_debug_update_firebase_uid", {firebase_uid: ""}, function(response) {
-					$btn.prop("disabled", false).text("' . esc_js( __( 'Clear UID', 'awana-digital-sync' ) ) . '");
+					$btn.prop("disabled", false).text("' . esc_js( __( 'Clear UID', 'awana-commerce' ) ) . '");
 					if (response.success) { location.reload(); }
 					else { alert(response.data.message); }
 				});
@@ -387,7 +387,7 @@ class Awana_Debug {
 	 */
 	public function render_admin_page() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'awana-digital-sync' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'awana-commerce' ) );
 		}
 
 		$user_id      = get_current_user_id();
@@ -399,8 +399,8 @@ class Awana_Debug {
 
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html__( 'Awana Org Debug', 'awana-digital-sync' ); ?></h1>
-			<p><?php echo esc_html__( 'Debug page for validating B2B org sync from Firebase to user-meta to checkout.', 'awana-digital-sync' ); ?></p>
+			<h1><?php echo esc_html__( 'Awana Org Debug', 'awana-commerce' ); ?></h1>
+			<p><?php echo esc_html__( 'Debug page for validating B2B org sync from Firebase to user-meta to checkout.', 'awana-commerce' ); ?></p>
 
 			<?php
 			$this->render_section_user_info( $user_id, $user, $firebase_uid, $last_sync );
@@ -428,53 +428,53 @@ class Awana_Debug {
 	private function render_section_user_info( $user_id, $user, $firebase_uid, $last_sync ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Brukerinfo', 'awana-digital-sync' ); ?></h2>
+			<h2><?php echo esc_html__( 'Brukerinfo', 'awana-commerce' ); ?></h2>
 			<dl class="awana-debug-grid">
-				<dt><?php echo esc_html__( 'User ID', 'awana-digital-sync' ); ?></dt>
+				<dt><?php echo esc_html__( 'User ID', 'awana-commerce' ); ?></dt>
 				<dd><?php echo esc_html( $user_id ); ?></dd>
 
-				<dt><?php echo esc_html__( 'Email', 'awana-digital-sync' ); ?></dt>
+				<dt><?php echo esc_html__( 'Email', 'awana-commerce' ); ?></dt>
 				<dd><?php echo esc_html( $user->user_email ); ?></dd>
 
-				<dt><?php echo esc_html__( 'Firebase UID', 'awana-digital-sync' ); ?></dt>
+				<dt><?php echo esc_html__( 'Firebase UID', 'awana-commerce' ); ?></dt>
 				<dd>
 					<?php if ( $firebase_uid ) : ?>
 						<code><?php echo esc_html( $firebase_uid ); ?></code>
 					<?php else : ?>
-						<span class="awana-debug-status error"><?php echo esc_html__( 'Not set', 'awana-digital-sync' ); ?></span>
+						<span class="awana-debug-status error"><?php echo esc_html__( 'Not set', 'awana-commerce' ); ?></span>
 					<?php endif; ?>
 				</dd>
 
-				<dt><?php echo esc_html__( 'Last Sync', 'awana-digital-sync' ); ?></dt>
+				<dt><?php echo esc_html__( 'Last Sync', 'awana-commerce' ); ?></dt>
 				<dd>
 					<?php if ( $last_sync ) : ?>
 						<?php
 						$last_sync_time = intval( $last_sync );
 						$human_time     = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_sync_time );
-						$relative       = human_time_diff( $last_sync_time, time() ) . ' ' . __( 'ago', 'awana-digital-sync' );
+						$relative       = human_time_diff( $last_sync_time, time() ) . ' ' . __( 'ago', 'awana-commerce' );
 						?>
 						<?php echo esc_html( $human_time ); ?> (<?php echo esc_html( $relative ); ?>)
 					<?php else : ?>
-						<span class="awana-debug-status warning"><?php echo esc_html__( 'Never synced', 'awana-digital-sync' ); ?></span>
+						<span class="awana-debug-status warning"><?php echo esc_html__( 'Never synced', 'awana-commerce' ); ?></span>
 					<?php endif; ?>
 				</dd>
 
-				<dt><?php echo esc_html__( 'TTL Status', 'awana-digital-sync' ); ?></dt>
+				<dt><?php echo esc_html__( 'TTL Status', 'awana-commerce' ); ?></dt>
 				<dd>
 					<?php
 					$should_sync = Awana_Org_Sync::should_sync( $user_id );
 					$ttl_hours   = Awana_Org_Sync::TTL_SECONDS / 3600;
 					if ( $should_sync ) :
 						?>
-						<span class="awana-debug-status expired"><?php echo esc_html__( 'Expired - will sync on next page load', 'awana-digital-sync' ); ?></span>
+						<span class="awana-debug-status expired"><?php echo esc_html__( 'Expired - will sync on next page load', 'awana-commerce' ); ?></span>
 					<?php else : ?>
 						<?php
 						$time_remaining = ( $last_sync + Awana_Org_Sync::TTL_SECONDS ) - time();
 						$hours_left     = round( $time_remaining / 3600, 1 );
 						?>
-						<span class="awana-debug-status fresh"><?php echo esc_html( sprintf( __( 'Fresh - %s hours remaining', 'awana-digital-sync' ), $hours_left ) ); ?></span>
+						<span class="awana-debug-status fresh"><?php echo esc_html( sprintf( __( 'Fresh - %s hours remaining', 'awana-commerce' ), $hours_left ) ); ?></span>
 					<?php endif; ?>
-					<br><small><?php echo esc_html( sprintf( __( 'TTL: %d seconds (%d hours)', 'awana-digital-sync' ), Awana_Org_Sync::TTL_SECONDS, $ttl_hours ) ); ?></small>
+					<br><small><?php echo esc_html( sprintf( __( 'TTL: %d seconds (%d hours)', 'awana-commerce' ), Awana_Org_Sync::TTL_SECONDS, $ttl_hours ) ); ?></small>
 				</dd>
 			</dl>
 		</div>
@@ -489,23 +489,23 @@ class Awana_Debug {
 	private function render_section_update_uid( $firebase_uid ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Update Firebase UID', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Change the Firebase UID for testing purposes.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Update Firebase UID', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Change the Firebase UID for testing purposes.', 'awana-commerce' ); ?></p>
 			<p>
 				<input type="text" id="awana-debug-firebase-uid-input" class="regular-text"
 					value="<?php echo esc_attr( $firebase_uid ); ?>"
-					placeholder="<?php echo esc_attr__( 'Enter Firebase UID', 'awana-digital-sync' ); ?>"
+					placeholder="<?php echo esc_attr__( 'Enter Firebase UID', 'awana-commerce' ); ?>"
 					style="width: 350px;" />
 			</p>
 			<p>
 				<button id="awana-debug-update-uid" class="button button-primary">
-					<?php echo esc_html__( 'Update Firebase UID', 'awana-digital-sync' ); ?>
+					<?php echo esc_html__( 'Update Firebase UID', 'awana-commerce' ); ?>
 				</button>
 				<button id="awana-debug-clear-uid" class="button" <?php echo $firebase_uid ? '' : 'disabled'; ?>>
-					<?php echo esc_html__( 'Clear UID', 'awana-digital-sync' ); ?>
+					<?php echo esc_html__( 'Clear UID', 'awana-commerce' ); ?>
 				</button>
 			</p>
-			<p><small><?php echo esc_html__( 'Warning: Changing the UID will affect org sync for the current user.', 'awana-digital-sync' ); ?></small></p>
+			<p><small><?php echo esc_html__( 'Warning: Changing the UID will affect org sync for the current user.', 'awana-commerce' ); ?></small></p>
 		</div>
 		<?php
 	}
@@ -518,13 +518,13 @@ class Awana_Debug {
 	private function render_section_fetch_firebase( $firebase_uid ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Fetch from Firebase', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Fetch organizations directly from Firebase API without updating cache.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Fetch from Firebase', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Fetch organizations directly from Firebase API without updating cache.', 'awana-commerce' ); ?></p>
 			<button id="awana-debug-fetch-firebase" class="button button-primary" <?php echo $firebase_uid ? '' : 'disabled'; ?>>
-				<?php echo esc_html__( 'Fetch from Firebase', 'awana-digital-sync' ); ?>
+				<?php echo esc_html__( 'Fetch from Firebase', 'awana-commerce' ); ?>
 			</button>
 			<?php if ( ! $firebase_uid ) : ?>
-				<span style="color: #dc3232; margin-left: 10px;"><?php echo esc_html__( 'Firebase UID not set', 'awana-digital-sync' ); ?></span>
+				<span style="color: #dc3232; margin-left: 10px;"><?php echo esc_html__( 'Firebase UID not set', 'awana-commerce' ); ?></span>
 			<?php endif; ?>
 			<div id="awana-debug-firebase-result" class="awana-debug-result" style="display: none;"></div>
 		</div>
@@ -540,19 +540,19 @@ class Awana_Debug {
 	private function render_section_cached_orgs( $firebase_uid, $orgs ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Lagret org-data', 'awana-digital-sync' ); ?></h2>
+			<h2><?php echo esc_html__( 'Lagret org-data', 'awana-commerce' ); ?></h2>
 			<p>
 				<button id="awana-debug-force-sync" class="button" <?php echo $firebase_uid ? '' : 'disabled'; ?>>
-					<?php echo esc_html__( 'Force Sync', 'awana-digital-sync' ); ?>
+					<?php echo esc_html__( 'Force Sync', 'awana-commerce' ); ?>
 				</button>
 				<button id="awana-debug-clear-cache" class="button">
-					<?php echo esc_html__( 'Clear Cache', 'awana-digital-sync' ); ?>
+					<?php echo esc_html__( 'Clear Cache', 'awana-commerce' ); ?>
 				</button>
 			</p>
 			<?php if ( $orgs ) : ?>
 				<?php $this->render_organizations( $orgs ); ?>
 			<?php else : ?>
-				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations', 'awana-digital-sync' ); ?></p>
+				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations', 'awana-commerce' ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -566,10 +566,10 @@ class Awana_Debug {
 	private function render_section_diff( $firebase_uid ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Diff Firebase vs Cache', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Compare fresh Firebase data with cached data to identify differences.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Diff Firebase vs Cache', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Compare fresh Firebase data with cached data to identify differences.', 'awana-commerce' ); ?></p>
 			<button id="awana-debug-compare" class="button" <?php echo $firebase_uid ? '' : 'disabled'; ?>>
-				<?php echo esc_html__( 'Compare Firebase vs Cache', 'awana-digital-sync' ); ?>
+				<?php echo esc_html__( 'Compare Firebase vs Cache', 'awana-commerce' ); ?>
 			</button>
 			<div id="awana-debug-compare-result" class="awana-debug-result" style="display: none;"></div>
 		</div>
@@ -584,15 +584,15 @@ class Awana_Debug {
 	private function render_section_checkout_sim( $orgs ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Simuler checkout org-valg', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Select an organization to see what would be saved as order meta.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Simuler checkout org-valg', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Select an organization to see what would be saved as order meta.', 'awana-commerce' ); ?></p>
 			<?php if ( $orgs && is_array( $orgs ) ) : ?>
 				<?php $org_list = isset( $orgs['organizations'] ) ? $orgs['organizations'] : ( isset( $orgs[0] ) ? $orgs : array() ); ?>
 				<select id="awana-debug-org-select" style="min-width: 300px;">
-					<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-digital-sync' ); ?></option>
+					<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-commerce' ); ?></option>
 					<?php foreach ( $org_list as $org ) : ?>
 						<?php
-						$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) );
+						$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-commerce' ) );
 						$pog      = isset( $org['pogCustomerNumber'] ) ? $org['pogCustomerNumber'] : '';
 						$label    = $org_name . ( $pog ? ' (POG: ' . $pog . ')' : ' (no POG)' );
 						?>
@@ -601,7 +601,7 @@ class Awana_Debug {
 				</select>
 				<div id="awana-debug-checkout-result" class="awana-debug-result" style="display: none;"></div>
 			<?php else : ?>
-				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations available', 'awana-digital-sync' ); ?></p>
+				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations available', 'awana-commerce' ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -615,30 +615,30 @@ class Awana_Debug {
 	private function render_section_writeback_sim( $orgs ) {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Write-back test (dry run)', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Simulate what would be sent to updateMemberPogCustomerNumber. No actual request is made.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Write-back test (dry run)', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Simulate what would be sent to updateMemberPogCustomerNumber. No actual request is made.', 'awana-commerce' ); ?></p>
 			<?php if ( $orgs && is_array( $orgs ) ) : ?>
 				<?php $org_list = isset( $orgs['organizations'] ) ? $orgs['organizations'] : ( isset( $orgs[0] ) ? $orgs : array() ); ?>
 				<p>
-					<label for="awana-debug-writeback-org-select"><?php echo esc_html__( 'Organization:', 'awana-digital-sync' ); ?></label>
+					<label for="awana-debug-writeback-org-select"><?php echo esc_html__( 'Organization:', 'awana-commerce' ); ?></label>
 					<select id="awana-debug-writeback-org-select" style="min-width: 300px;">
-						<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-digital-sync' ); ?></option>
+						<option value=""><?php echo esc_html__( '-- Select organization --', 'awana-commerce' ); ?></option>
 						<?php foreach ( $org_list as $org ) : ?>
-							<?php $org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) ); ?>
+							<?php $org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-commerce' ) ); ?>
 							<option value="<?php echo esc_attr( wp_json_encode( $org ) ); ?>"><?php echo esc_html( $org_name ); ?></option>
 						<?php endforeach; ?>
 					</select>
 				</p>
 				<p>
-					<label for="awana-debug-new-pog"><?php echo esc_html__( 'New POG number:', 'awana-digital-sync' ); ?></label>
+					<label for="awana-debug-new-pog"><?php echo esc_html__( 'New POG number:', 'awana-commerce' ); ?></label>
 					<input type="text" id="awana-debug-new-pog" class="regular-text" placeholder="e.g., 12345" />
 				</p>
 				<button id="awana-debug-writeback-simulate" class="button">
-					<?php echo esc_html__( 'Simulate Write-back', 'awana-digital-sync' ); ?>
+					<?php echo esc_html__( 'Simulate Write-back', 'awana-commerce' ); ?>
 				</button>
 				<div id="awana-debug-writeback-result" class="awana-debug-result" style="display: none;"></div>
 			<?php else : ?>
-				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations available', 'awana-digital-sync' ); ?></p>
+				<p class="awana-debug-status warning"><?php echo esc_html__( 'No cached organizations available', 'awana-commerce' ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -650,10 +650,10 @@ class Awana_Debug {
 	private function render_section_connection_test() {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Test Firebase-tilkobling', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Check configuration constants and test Firebase API connectivity.', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Test Firebase-tilkobling', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Check configuration constants and test Firebase API connectivity.', 'awana-commerce' ); ?></p>
 			<button id="awana-debug-test-connection" class="button">
-				<?php echo esc_html__( 'Test Firebase Connection', 'awana-digital-sync' ); ?>
+				<?php echo esc_html__( 'Test Firebase Connection', 'awana-commerce' ); ?>
 			</button>
 			<div id="awana-debug-connection-result" class="awana-debug-result" style="display: none;"></div>
 		</div>
@@ -666,10 +666,10 @@ class Awana_Debug {
 	private function render_section_log() {
 		?>
 		<div class="awana-debug-section">
-			<h2><?php echo esc_html__( 'Logg-visning', 'awana-digital-sync' ); ?></h2>
-			<p><?php echo esc_html__( 'Recent log entries related to org sync (last 30 lines).', 'awana-digital-sync' ); ?></p>
+			<h2><?php echo esc_html__( 'Logg-visning', 'awana-commerce' ); ?></h2>
+			<p><?php echo esc_html__( 'Recent log entries related to org sync (last 30 lines).', 'awana-commerce' ); ?></p>
 			<button id="awana-debug-refresh-log" class="button">
-				<?php echo esc_html__( 'Refresh Log', 'awana-digital-sync' ); ?>
+				<?php echo esc_html__( 'Refresh Log', 'awana-commerce' ); ?>
 			</button>
 			<div id="awana-debug-log-result">
 				<?php echo $this->get_log_html(); ?>
@@ -687,15 +687,15 @@ class Awana_Debug {
 		$org_list = isset( $orgs['organizations'] ) ? $orgs['organizations'] : ( isset( $orgs[0] ) ? $orgs : array( $orgs ) );
 
 		if ( empty( $org_list ) ) {
-			echo '<p class="awana-debug-status warning">' . esc_html__( 'No organizations in cache', 'awana-digital-sync' ) . '</p>';
+			echo '<p class="awana-debug-status warning">' . esc_html__( 'No organizations in cache', 'awana-commerce' ) . '</p>';
 			return;
 		}
 
-		echo '<p>' . esc_html( sprintf( __( 'Found %d organization(s)', 'awana-digital-sync' ), count( $org_list ) ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( 'Found %d organization(s)', 'awana-commerce' ), count( $org_list ) ) ) . '</p>';
 
 		foreach ( $org_list as $org ) {
 			$has_pog  = ! empty( $org['pogCustomerNumber'] );
-			$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-digital-sync' ) );
+			$org_name = ! empty( $org['title'] ) ? $org['title'] : ( $org['organizationId'] ?? __( 'Unknown', 'awana-commerce' ) );
 			?>
 			<div class="awana-debug-org-card <?php echo $has_pog ? 'has-pog' : 'no-pog'; ?>">
 				<strong><?php echo esc_html( $org_name ); ?></strong>
@@ -729,7 +729,7 @@ class Awana_Debug {
 		$log_files = glob( $log_dir . 'awana_digital-*.log' );
 
 		if ( empty( $log_files ) ) {
-			return '<p class="awana-debug-status warning">' . esc_html__( 'No log files found', 'awana-digital-sync' ) . '</p>';
+			return '<p class="awana-debug-status warning">' . esc_html__( 'No log files found', 'awana-commerce' ) . '</p>';
 		}
 
 		// Get the most recent log file.
@@ -744,7 +744,7 @@ class Awana_Debug {
 		$content  = file_get_contents( $log_file );
 
 		if ( empty( $content ) ) {
-			return '<p class="awana-debug-status warning">' . esc_html__( 'Log file is empty', 'awana-digital-sync' ) . '</p>';
+			return '<p class="awana-debug-status warning">' . esc_html__( 'Log file is empty', 'awana-commerce' ) . '</p>';
 		}
 
 		// Split into lines and filter for relevant entries.
@@ -766,7 +766,7 @@ class Awana_Debug {
 		$filtered_lines = array_slice( array_reverse( $filtered_lines ), 0, 30 );
 
 		if ( empty( $filtered_lines ) ) {
-			return '<p class="awana-debug-status warning">' . esc_html__( 'No matching log entries found', 'awana-digital-sync' ) . '</p>';
+			return '<p class="awana-debug-status warning">' . esc_html__( 'No matching log entries found', 'awana-commerce' ) . '</p>';
 		}
 
 		$html = '<div class="awana-debug-log-container">';
@@ -805,14 +805,14 @@ class Awana_Debug {
 		check_ajax_referer( 'awana_debug_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$user_id      = get_current_user_id();
 		$firebase_uid = get_user_meta( $user_id, 'mo_firebase_user_uid', true );
 
 		if ( empty( $firebase_uid ) ) {
-			wp_send_json_error( array( 'message' => __( 'Firebase UID not set for current user.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Firebase UID not set for current user.', 'awana-commerce' ) ) );
 		}
 
 		return $firebase_uid;
@@ -825,7 +825,7 @@ class Awana_Debug {
 		$firebase_uid = $this->validate_ajax_with_firebase_uid();
 
 		if ( ! defined( 'AWANA_FIREBASE_GET_ORGS_URL' ) || ! defined( 'AWANA_FIREBASE_API_KEY' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Firebase constants not configured.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Firebase constants not configured.', 'awana-commerce' ) ) );
 		}
 
 		$response = wp_remote_request( AWANA_FIREBASE_GET_ORGS_URL, $this->build_firebase_request_args( $firebase_uid ) );
@@ -852,12 +852,12 @@ class Awana_Debug {
 	 */
 	private function render_firebase_response_html( $status_code, $body, $decoded ) {
 		ob_start();
-		echo '<p><strong>' . esc_html__( 'Status:', 'awana-digital-sync' ) . '</strong> ' . esc_html( $status_code ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Status:', 'awana-commerce' ) . '</strong> ' . esc_html( $status_code ) . '</p>';
 
 		if ( $decoded ) {
 			$org_list = isset( $decoded['organizations'] ) ? $decoded['organizations'] : ( isset( $decoded[0] ) ? $decoded : array() );
 			$count    = is_array( $org_list ) ? count( $org_list ) : 0;
-			echo '<p><strong>' . esc_html__( 'Organizations found:', 'awana-digital-sync' ) . '</strong> ' . esc_html( $count ) . '</p>';
+			echo '<p><strong>' . esc_html__( 'Organizations found:', 'awana-commerce' ) . '</strong> ' . esc_html( $count ) . '</p>';
 
 			if ( $count > 0 ) {
 				foreach ( $org_list as $org ) {
@@ -872,7 +872,7 @@ class Awana_Debug {
 				}
 			}
 
-			echo '<details><summary>' . esc_html__( 'Raw JSON', 'awana-digital-sync' ) . '</summary>';
+			echo '<details><summary>' . esc_html__( 'Raw JSON', 'awana-commerce' ) . '</summary>';
 			echo '<pre>' . esc_html( wp_json_encode( $decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ) . '</pre>';
 			echo '</details>';
 		} else {
@@ -892,9 +892,9 @@ class Awana_Debug {
 		$result = Awana_Org_Sync::sync_organizations( $user_id, $firebase_uid );
 
 		if ( $result ) {
-			wp_send_json_success( array( 'message' => __( 'Sync completed successfully.', 'awana-digital-sync' ) ) );
+			wp_send_json_success( array( 'message' => __( 'Sync completed successfully.', 'awana-commerce' ) ) );
 		} else {
-			wp_send_json_error( array( 'message' => __( 'Sync failed. Check logs for details.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Sync failed. Check logs for details.', 'awana-commerce' ) ) );
 		}
 	}
 
@@ -905,14 +905,14 @@ class Awana_Debug {
 		check_ajax_referer( 'awana_debug_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$user_id = get_current_user_id();
 		delete_user_meta( $user_id, '_awana_organizations' );
 		delete_user_meta( $user_id, '_awana_orgs_last_sync' );
 
-		wp_send_json_success( array( 'message' => __( 'Cache cleared.', 'awana-digital-sync' ) ) );
+		wp_send_json_success( array( 'message' => __( 'Cache cleared.', 'awana-commerce' ) ) );
 	}
 
 	/**
@@ -926,7 +926,7 @@ class Awana_Debug {
 		$cached     = $cached_raw ? json_decode( $cached_raw, true ) : null;
 
 		if ( ! defined( 'AWANA_FIREBASE_GET_ORGS_URL' ) || ! defined( 'AWANA_FIREBASE_API_KEY' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Firebase constants not configured.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Firebase constants not configured.', 'awana-commerce' ) ) );
 		}
 
 		$response = wp_remote_request( AWANA_FIREBASE_GET_ORGS_URL, $this->build_firebase_request_args( $firebase_uid ) );
@@ -953,11 +953,11 @@ class Awana_Debug {
 		ob_start();
 
 		if ( ! $cached && ! $fresh ) {
-			echo '<p>' . esc_html__( 'No data available for comparison.', 'awana-digital-sync' ) . '</p>';
+			echo '<p>' . esc_html__( 'No data available for comparison.', 'awana-commerce' ) . '</p>';
 		} elseif ( ! $cached ) {
-			echo '<p class="awana-debug-diff-added">' . esc_html__( 'Cache is empty. Firebase has data.', 'awana-digital-sync' ) . '</p>';
+			echo '<p class="awana-debug-diff-added">' . esc_html__( 'Cache is empty. Firebase has data.', 'awana-commerce' ) . '</p>';
 		} elseif ( ! $fresh ) {
-			echo '<p class="awana-debug-diff-removed">' . esc_html__( 'Firebase returned no data. Cache has data.', 'awana-digital-sync' ) . '</p>';
+			echo '<p class="awana-debug-diff-removed">' . esc_html__( 'Firebase returned no data. Cache has data.', 'awana-commerce' ) . '</p>';
 		} else {
 			$this->render_org_diff( $cached, $fresh );
 		}
@@ -976,11 +976,11 @@ class Awana_Debug {
 		$fresh_json  = wp_json_encode( $fresh, JSON_PRETTY_PRINT );
 
 		if ( $cached_json === $fresh_json ) {
-			echo '<p style="color: #155724;">✅ ' . esc_html__( 'No differences - cache matches Firebase.', 'awana-digital-sync' ) . '</p>';
+			echo '<p style="color: #155724;">✅ ' . esc_html__( 'No differences - cache matches Firebase.', 'awana-commerce' ) . '</p>';
 			return;
 		}
 
-		echo '<p style="color: #856404;">⚠️ ' . esc_html__( 'Differences found:', 'awana-digital-sync' ) . '</p>';
+		echo '<p style="color: #856404;">⚠️ ' . esc_html__( 'Differences found:', 'awana-commerce' ) . '</p>';
 
 		$cached_by_id = $this->index_orgs_by_id( $cached );
 		$fresh_by_id  = $this->index_orgs_by_id( $fresh );
@@ -992,18 +992,18 @@ class Awana_Debug {
 
 			if ( $in_cache && ! $in_fresh ) {
 				echo '<div class="awana-debug-diff-removed" style="padding:5px;margin:5px 0;">';
-				echo '➖ ' . esc_html__( 'Removed from Firebase:', 'awana-digital-sync' ) . ' ' . esc_html( $id );
+				echo '➖ ' . esc_html__( 'Removed from Firebase:', 'awana-commerce' ) . ' ' . esc_html( $id );
 				echo '</div>';
 			} elseif ( ! $in_cache && $in_fresh ) {
 				echo '<div class="awana-debug-diff-added" style="padding:5px;margin:5px 0;">';
-				echo '➕ ' . esc_html__( 'New in Firebase:', 'awana-digital-sync' ) . ' ' . esc_html( $id );
+				echo '➕ ' . esc_html__( 'New in Firebase:', 'awana-commerce' ) . ' ' . esc_html( $id );
 				echo '</div>';
 			} else {
 				$diff = $this->array_diff_recursive( $cached_by_id[ $id ], $fresh_by_id[ $id ] );
 				if ( ! empty( $diff ) ) {
 					$org_name = isset( $fresh_by_id[ $id ]['title'] ) ? $fresh_by_id[ $id ]['title'] : $id;
 					echo '<div class="awana-debug-diff-changed" style="padding:5px;margin:5px 0;">';
-					echo '🔄 ' . esc_html__( 'Changed:', 'awana-digital-sync' ) . ' ' . esc_html( $org_name );
+					echo '🔄 ' . esc_html__( 'Changed:', 'awana-commerce' ) . ' ' . esc_html( $org_name );
 					echo '<pre style="font-size:11px;margin:5px 0 0;">' . esc_html( wp_json_encode( $diff, JSON_PRETTY_PRINT ) ) . '</pre>';
 					echo '</div>';
 				}
@@ -1079,7 +1079,7 @@ class Awana_Debug {
 		check_ajax_referer( 'awana_debug_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		ob_start();
@@ -1101,16 +1101,16 @@ class Awana_Debug {
 			'AWANA_POG_CUSTOMER_WEBHOOK_URL'       => 'POG Customer Webhook URL',
 		);
 
-		echo '<h3>' . esc_html__( 'Configuration Constants', 'awana-digital-sync' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Configuration Constants', 'awana-commerce' ) . '</h3>';
 		echo '<dl class="awana-debug-grid">';
 
 		foreach ( $constants as $const => $label ) {
 			echo '<dt>' . esc_html( $label ) . '</dt>';
 			echo '<dd>';
 			if ( defined( $const ) && ! empty( constant( $const ) ) ) {
-				echo '<span class="awana-debug-status ok">✅ ' . esc_html__( 'Defined', 'awana-digital-sync' ) . '</span>';
+				echo '<span class="awana-debug-status ok">✅ ' . esc_html__( 'Defined', 'awana-commerce' ) . '</span>';
 			} else {
-				echo '<span class="awana-debug-status error">❌ ' . esc_html__( 'Not defined', 'awana-digital-sync' ) . '</span>';
+				echo '<span class="awana-debug-status error">❌ ' . esc_html__( 'Not defined', 'awana-commerce' ) . '</span>';
 			}
 			echo '</dd>';
 		}
@@ -1126,7 +1126,7 @@ class Awana_Debug {
 			return;
 		}
 
-		echo '<h3>' . esc_html__( 'Connection Test', 'awana-digital-sync' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Connection Test', 'awana-commerce' ) . '</h3>';
 
 		$response = wp_remote_request(
 			AWANA_FIREBASE_GET_ORGS_URL,
@@ -1139,18 +1139,18 @@ class Awana_Debug {
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
-		echo '<p><strong>' . esc_html__( 'HTTP Status:', 'awana-digital-sync' ) . '</strong> ';
+		echo '<p><strong>' . esc_html__( 'HTTP Status:', 'awana-commerce' ) . '</strong> ';
 
 		if ( $status_code >= 200 && $status_code < 300 ) {
 			echo '<span class="awana-debug-status ok">' . esc_html( $status_code ) . '</span>';
 		} elseif ( $status_code >= 400 && $status_code < 500 ) {
-			echo '<span class="awana-debug-status warning">' . esc_html( $status_code ) . ' (' . esc_html__( 'Expected for invalid UID', 'awana-digital-sync' ) . ')</span>';
+			echo '<span class="awana-debug-status warning">' . esc_html( $status_code ) . ' (' . esc_html__( 'Expected for invalid UID', 'awana-commerce' ) . ')</span>';
 		} else {
 			echo '<span class="awana-debug-status error">' . esc_html( $status_code ) . '</span>';
 		}
 
 		echo '</p>';
-		echo '<p><small>' . esc_html__( 'Note: 4xx status is expected when testing with dummy UID.', 'awana-digital-sync' ) . '</small></p>';
+		echo '<p><small>' . esc_html__( 'Note: 4xx status is expected when testing with dummy UID.', 'awana-commerce' ) . '</small></p>';
 	}
 
 	/**
@@ -1160,7 +1160,7 @@ class Awana_Debug {
 		check_ajax_referer( 'awana_debug_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		wp_send_json_success( array( 'html' => $this->get_log_html() ) );
@@ -1173,7 +1173,7 @@ class Awana_Debug {
 		check_ajax_referer( 'awana_debug_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-digital-sync' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'awana-commerce' ) ) );
 		}
 
 		$user_id      = get_current_user_id();
@@ -1185,13 +1185,13 @@ class Awana_Debug {
 			// Also clear cached org data since it's no longer valid.
 			delete_user_meta( $user_id, '_awana_organizations' );
 			delete_user_meta( $user_id, '_awana_orgs_last_sync' );
-			wp_send_json_success( array( 'message' => __( 'Firebase UID cleared.', 'awana-digital-sync' ) ) );
+			wp_send_json_success( array( 'message' => __( 'Firebase UID cleared.', 'awana-commerce' ) ) );
 		} else {
 			update_user_meta( $user_id, 'mo_firebase_user_uid', $firebase_uid );
 			// Clear cached org data so it will be re-fetched with new UID.
 			delete_user_meta( $user_id, '_awana_organizations' );
 			delete_user_meta( $user_id, '_awana_orgs_last_sync' );
-			wp_send_json_success( array( 'message' => __( 'Firebase UID updated.', 'awana-digital-sync' ) ) );
+			wp_send_json_success( array( 'message' => __( 'Firebase UID updated.', 'awana-commerce' ) ) );
 		}
 	}
 }
