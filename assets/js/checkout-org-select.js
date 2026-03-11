@@ -28,7 +28,8 @@
 			'billing_postcode',
 			'billing_city',
 			'billing_phone',
-			'billing_email'
+			'billing_email',
+			'org_number'
 		],
 
 		// Cache DOM elements
@@ -678,6 +679,9 @@
 				emailValue = awanaOrgData.userEmail;
 			}
 			this.setFieldValue('billing_email', emailValue);
+
+			// Organization number
+			this.setFieldValue('org_number', org.orgNumber || '');
 		},
 
 		/**

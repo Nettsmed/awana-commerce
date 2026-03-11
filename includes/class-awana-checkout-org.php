@@ -35,12 +35,32 @@ class Awana_Checkout_Org {
 	 */
 	public static function init() {
 		$instance = new self();
+		add_filter( 'woocommerce_checkout_fields', array( $instance, 'add_org_number_field' ) );
 		add_action( 'woocommerce_before_checkout_billing_form', array( $instance, 'render_payment_type_selector' ) );
 		add_action( 'woocommerce_checkout_process', array( $instance, 'validate_checkout_field' ) );
 		add_action( 'woocommerce_checkout_create_order', array( $instance, 'save_checkout_field' ), 10, 2 );
 		add_action( 'wp_enqueue_scripts', array( $instance, 'enqueue_checkout_assets' ) );
 		add_action( 'add_meta_boxes', array( $instance, 'add_order_meta_box' ) );
 		add_action( 'woocommerce_admin_order_data_after_billing_address', array( $instance, 'display_org_info_in_order' ) );
+	}
+
+	/**
+	 * Add organization number field to checkout billing fields.
+	 *
+	 * @param array $fields Checkout fields.
+	 * @return array
+	 */
+	public function add_org_number_field( $fields ) {
+		$fields['billing']['org_number'] = array(
+			'type'        => 'text',
+			'label'       => __( 'Organisasjonsnummer', 'awana-digital-sync' ),
+			'placeholder' => __( 'Hvis bedriftskunde', 'awana-digital-sync' ),
+			'required'    => false,
+			'class'       => array( 'form-row-wide' ),
+			'priority'    => 120,
+		);
+
+		return $fields;
 	}
 
 	/**
@@ -311,8 +331,13 @@ class Awana_Checkout_Org {
 		// Always save payment type.
 		$order->update_meta_data( self::META_PAYMENT_TYPE, $payment_type );
 
-		// If private or no organizations, we're done.
+		// If private or no organizations, still save org_number from form if provided.
 		if ( 'private' === $payment_type || empty( $organizations ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! empty( $_POST['org_number'] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$order->update_meta_data( self::META_ORG_NUMBER, sanitize_text_field( wp_unslash( $_POST['org_number'] ) ) );
+			}
 			return;
 		}
 
