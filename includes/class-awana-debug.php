@@ -741,7 +741,20 @@ class Awana_Debug {
 		);
 
 		$log_file = $log_files[0];
-		$content  = file_get_contents( $log_file );
+
+		// Read only the last 64 KB to avoid loading huge log files into memory.
+		$max_bytes = 64 * 1024;
+		$fh        = fopen( $log_file, 'r' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		if ( ! $fh ) {
+			return '<p class="awana-debug-status warning">' . esc_html__( 'Could not open log file', 'awana-commerce' ) . '</p>';
+		}
+		$file_size = filesize( $log_file );
+		if ( $file_size > $max_bytes ) {
+			fseek( $fh, -$max_bytes, SEEK_END );
+			fgets( $fh ); // Discard partial first line.
+		}
+		$content = fread( $fh, $max_bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
 		if ( empty( $content ) ) {
 			return '<p class="awana-debug-status warning">' . esc_html__( 'Log file is empty', 'awana-commerce' ) . '</p>';
