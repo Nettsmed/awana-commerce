@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin debug page for B2B org sync validation
 
 ### Fixed
+- Billing company now set via `set_billing_company()` so native WooCommerce field is populated
 - Billing email now falls back to WP user email when org has no `billingEmail`
 - Organization number field auto-populated from org data on selection
 - Wizard positioning on resize and completed step number visibility
