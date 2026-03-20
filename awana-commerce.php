@@ -77,8 +77,10 @@ Awana_Checkout_Org::init();
 if ( is_admin() ) {
 	include_once 'includes/class-awana-admin.php';
 	include_once 'includes/class-awana-debug.php';
+	include_once 'includes/class-awana-b2b-sync-status.php';
 	Awana_Admin::init();
 	Awana_Debug::init();
+	Awana_B2B_Sync_Status::init();
 }
 
 /**

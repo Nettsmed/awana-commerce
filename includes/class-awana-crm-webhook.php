@@ -505,8 +505,8 @@ class Awana_CRM_Webhook {
 		}
 		$webhook_url = AWANA_FIREBASE_CHECKOUT_INVOICE_URL;
 
-		// Get API key
-		$api_key = defined( 'AWANA_FIREBASE_API_KEY' ) ? AWANA_FIREBASE_API_KEY : '';
+		// Get API key — uses webhook key (WC_API_KEY on Firebase), not WP_API_KEY
+		$api_key = defined( 'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY' ) ? AWANA_INVOICE_STATUS_WEBHOOK_API_KEY : '';
 
 		// Read org meta from order
 		$organization_id   = $order->get_meta( '_awana_selected_org_id', true );
@@ -579,13 +579,18 @@ class Awana_CRM_Webhook {
 		) );
 
 		if ( is_wp_error( $response ) ) {
+			$error_msg = $response->get_error_message();
 			Awana_Logger::error(
 				'Failed to create checkout invoice in CRM',
 				array(
 					'order_id' => $order->get_id(),
-					'error'    => $response->get_error_message(),
+					'error'    => $error_msg,
 				)
 			);
+			$order->update_meta_data( 'crm_sync_woo', 'failed' );
+			$order->update_meta_data( '_awana_sync_last_error', $error_msg );
+			$order->update_meta_data( '_awana_sync_last_attempt', time() );
+			$order->save();
 			return $response;
 		}
 
@@ -593,6 +598,7 @@ class Awana_CRM_Webhook {
 		$response_body = wp_remote_retrieve_body( $response );
 
 		if ( $status_code < 200 || $status_code >= 300 ) {
+			$error_msg = "CRM returned HTTP {$status_code}: {$response_body}";
 			Awana_Logger::error(
 				'CRM returned non-2xx for checkout invoice creation',
 				array(
@@ -601,7 +607,11 @@ class Awana_CRM_Webhook {
 					'response'    => $response_body,
 				)
 			);
-			return new WP_Error( 'webhook_failed', 'CRM returned error status', array( 'status' => $status_code ) );
+			$order->update_meta_data( 'crm_sync_woo', 'failed' );
+			$order->update_meta_data( '_awana_sync_last_error', $error_msg );
+			$order->update_meta_data( '_awana_sync_last_attempt', time() );
+			$order->save();
+			return new WP_Error( 'webhook_failed', $error_msg, array( 'status' => $status_code ) );
 		}
 
 		// Parse response to get invoiceId
@@ -615,6 +625,10 @@ class Awana_CRM_Webhook {
 			$order->update_meta_data( 'crm_source', 'woo-checkout' );
 		}
 
+		$order->update_meta_data( 'crm_sync_woo', 'success' );
+		$order->update_meta_data( '_awana_sync_last_attempt', time() );
+		$order->update_meta_data( '_awana_sync_last_success', time() );
+		$order->delete_meta_data( '_awana_sync_last_error' );
 		$order->update_meta_data( '_awana_checkout_invoice_synced', time() );
 		$order->save();
 
