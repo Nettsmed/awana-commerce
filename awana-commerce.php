@@ -268,16 +268,7 @@ add_action( 'woocommerce_payment_complete', function( $order_id ) {
 		return;
 	}
 
-	$payment_type = $order->get_meta( '_awana_payment_type', true );
-	if ( 'organization' !== $payment_type ) {
-		return;
-	}
-
-	// Skip if already synced
-	if ( $order->get_meta( '_awana_checkout_invoice_synced', true ) ) {
-		return;
-	}
-
+	// Guards (payment_type, dedup) are handled inside the method
 	Awana_CRM_Webhook::notify_checkout_invoice_to_crm( $order );
 }, 10, 1 );
 
