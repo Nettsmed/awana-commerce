@@ -29,6 +29,7 @@ The core flow: CRM creates invoices → Woo receives them via REST API → Integ
 | `Awana_Org_Sync` | `includes/class-awana-org-sync.php` | Firebase org sync with TTL-based refresh (4h) on cart/checkout pages |
 | `Awana_Checkout_Org` | `includes/class-awana-checkout-org.php` | B2B 3-step checkout wizard with org selector and billing auto-fill |
 | `Awana_Admin` | `includes/class-awana-admin.php` | Admin dashboard: sync stats, failed syncs, manual sync, health checks |
+| `Awana_B2B_Sync_Status` | `includes/class-awana-b2b-sync-status.php` | CRM Sync admin page: B2B order sync status, retry, POG tracking |
 | `Awana_Debug` | `includes/class-awana-debug.php` | Debug page for org sync validation, Firebase UID management |
 | `Awana_Logger` | `includes/class-awana-logger.php` | Wrapper around WooCommerce logger (source: `awana_digital`) |
 
@@ -86,7 +87,8 @@ AWANA_FIREBASE_API_KEY             — Firebase API key
 AWANA_POG_CUSTOMER_WEBHOOK_URL     — invoiceCustomerNumberWebhook URL
 AWANA_POG_CUSTOMER_WEBHOOK_API_KEY — x-api-key for customer number webhook
 AWANA_INVOICE_STATUS_WEBHOOK_URL   — invoiceStatusWebhook URL
-AWANA_INVOICE_STATUS_WEBHOOK_API_KEY — x-api-key for status webhook (optional)
+AWANA_INVOICE_STATUS_WEBHOOK_API_KEY — x-api-key for status webhook + checkout invoice creation
+AWANA_FIREBASE_CHECKOUT_INVOICE_URL — createCheckoutInvoice endpoint (B2B checkout → CRM)
 ```
 
 ## Order Meta Keys (Do Not Rename)
@@ -96,6 +98,6 @@ These are stored on existing orders in production — renaming would break data:
 - CRM identifiers: `crm_invoice_id`, `crm_member_id`, `crm_organization_id`, `crm_source`, `crm_sync_woo`
 - POG fields: `pog_customer_number`, `pog_invoice_number`, `pog_kid_number`, `pog_status`
 - Sync tracking: `_awana_sync_last_attempt`, `_awana_sync_last_success`, `_awana_sync_last_error`, `_awana_sync_error_count`
-- Dedup markers: `_pog_customer_synced_to_crm`, `_pog_invoice_number_synced_to_crm`, `_pog_kid_number_synced_to_crm`, `_pog_status_synced_to_crm`
+- Dedup markers: `_pog_customer_synced_to_crm`, `_pog_invoice_number_synced_to_crm`, `_pog_kid_number_synced_to_crm`, `_pog_status_synced_to_crm`, `_awana_checkout_invoice_synced`
 - Checkout: `_awana_selected_org_id`, `_awana_selected_org_member_id`, `_awana_selected_org_title`, `_awana_payment_type`
 - User meta: `_awana_organizations`, `_awana_orgs_last_sync`

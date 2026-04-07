@@ -477,6 +477,193 @@ class Awana_CRM_Webhook {
 	}
 
 	/**
+	 * Create invoice in Firebase CRM for B2B checkout orders paid via Nets.
+	 * Called after payment is confirmed. Stores returned invoiceId on the order
+	 * so the existing webhook pipeline (Integrera/POG/CRM status sync) takes over.
+	 *
+	 * @param WC_Order $order WooCommerce order object.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public static function notify_checkout_invoice_to_crm( $order ) {
+		if ( ! self::should_sync_checkout_invoice( $order ) ) {
+			return false;
+		}
+
+		$payload = self::build_checkout_invoice_payload( $order );
+		if ( is_wp_error( $payload ) ) {
+			return false;
+		}
+
+		$response = self::send_checkout_invoice_request( $payload );
+
+		return self::handle_checkout_invoice_response( $order, $response, $payload );
+	}
+
+	/**
+	 * Check if a checkout invoice should be synced to CRM.
+	 *
+	 * @param WC_Order $order WooCommerce order.
+	 * @return bool
+	 */
+	private static function should_sync_checkout_invoice( $order ) {
+		if ( 'organization' !== $order->get_meta( '_awana_payment_type', true ) ) {
+			return false;
+		}
+
+		if ( $order->get_meta( '_awana_checkout_invoice_synced', true ) ) {
+			return false;
+		}
+
+		if ( ! defined( 'AWANA_FIREBASE_CHECKOUT_INVOICE_URL' ) || empty( AWANA_FIREBASE_CHECKOUT_INVOICE_URL ) ) {
+			Awana_Logger::error(
+				'AWANA_FIREBASE_CHECKOUT_INVOICE_URL not configured in wp-config.php',
+				array( 'order_id' => $order->get_id() )
+			);
+			return false;
+		}
+
+		if ( ! defined( 'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY' ) || empty( AWANA_INVOICE_STATUS_WEBHOOK_API_KEY ) ) {
+			Awana_Logger::error(
+				'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY not configured in wp-config.php',
+				array( 'order_id' => $order->get_id() )
+			);
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Build the payload for a checkout invoice CRM request.
+	 *
+	 * @param WC_Order $order WooCommerce order.
+	 * @return array|WP_Error Payload array or WP_Error if missing required data.
+	 */
+	private static function build_checkout_invoice_payload( $order ) {
+		$organization_id = $order->get_meta( '_awana_selected_org_id', true );
+		$member_id       = $order->get_meta( '_awana_selected_org_member_id', true );
+
+		if ( empty( $organization_id ) || empty( $member_id ) ) {
+			Awana_Logger::warning(
+				'Cannot create checkout invoice - missing org_id or member_id',
+				array( 'order_id' => $order->get_id() )
+			);
+			return new WP_Error( 'missing_data', 'Missing org_id or member_id' );
+		}
+
+		$invoice_lines = array();
+		foreach ( $order->get_items() as $item ) {
+			$product         = $item->get_product();
+			$invoice_lines[] = array(
+				'description'  => $item->get_name(),
+				'quantity'     => $item->get_quantity(),
+				'unitPrice'    => (float) ( $item->get_total() / max( $item->get_quantity(), 1 ) ),
+				'total'        => (float) $item->get_total(),
+				'tax'          => (float) $item->get_total_tax(),
+				'productId'    => $product ? $product->get_id() : null,
+				'sku'          => $product ? $product->get_sku() : null,
+				'pogProductId' => $item->get_meta( 'pog_product_id', true ) ?: null,
+			);
+		}
+
+		return array(
+			'memberId'          => $member_id,
+			'organizationId'    => $organization_id,
+			'organizationName'  => $order->get_meta( '_awana_selected_org_title', true ) ?: '',
+			'email'             => $order->get_billing_email(),
+			'orgNumber'         => $order->get_meta( 'org_number', true ) ?: null,
+			'pogCustomerNumber' => $order->get_meta( '_pog_customer_id', true ) ?: null,
+			'invoiceLines'      => $invoice_lines,
+			'total'             => (float) $order->get_total(),
+			'totalTax'          => (float) $order->get_total_tax(),
+			'currency'          => $order->get_currency(),
+			'billingAddress'    => array(
+				'street'     => $order->get_billing_address_1(),
+				'postalCode' => $order->get_billing_postcode(),
+				'city'       => $order->get_billing_city(),
+			),
+			'wooOrderId'        => $order->get_id(),
+		);
+	}
+
+	/**
+	 * Send the checkout invoice request to Firebase.
+	 *
+	 * @param array $payload Request payload.
+	 * @return array|WP_Error wp_remote_post response or WP_Error.
+	 */
+	private static function send_checkout_invoice_request( $payload ) {
+		return wp_remote_post( AWANA_FIREBASE_CHECKOUT_INVOICE_URL, array(
+			'timeout' => 15,
+			'headers' => array(
+				'Content-Type' => 'application/json',
+				'x-api-key'    => AWANA_INVOICE_STATUS_WEBHOOK_API_KEY,
+			),
+			'body'    => wp_json_encode( $payload ),
+		) );
+	}
+
+	/**
+	 * Handle the response from checkout invoice creation and update order sync status.
+	 *
+	 * @param WC_Order       $order    WooCommerce order.
+	 * @param array|WP_Error $response HTTP response or WP_Error.
+	 * @param array          $payload  Original request payload.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	private static function handle_checkout_invoice_response( $order, $response, $payload ) {
+		if ( is_wp_error( $response ) ) {
+			Awana_Logger::error( 'Checkout invoice request failed', array(
+				'order_id' => $order->get_id(),
+				'error'    => $response->get_error_message(),
+			) );
+			self::update_sync_status( $order, false, $response->get_error_message() );
+			return $response;
+		}
+
+		$status_code   = wp_remote_retrieve_response_code( $response );
+		$response_body = wp_remote_retrieve_body( $response );
+
+		if ( $status_code < 200 || $status_code >= 300 ) {
+			$error_msg = "CRM returned HTTP {$status_code}";
+			Awana_Logger::error( 'Checkout invoice CRM error', array(
+				'order_id'    => $order->get_id(),
+				'status_code' => $status_code,
+				'response'    => $response_body,
+			) );
+			self::update_sync_status( $order, false, $error_msg );
+			return new WP_Error( 'webhook_failed', $error_msg );
+		}
+
+		$body       = json_decode( $response_body, true );
+		$invoice_id = ! empty( $body['invoiceId'] ) ? $body['invoiceId'] : null;
+
+		if ( ! $invoice_id ) {
+			$error_msg = 'CRM returned 2xx but no invoiceId in response';
+			Awana_Logger::error( $error_msg, array(
+				'order_id' => $order->get_id(),
+				'response' => $response_body,
+			) );
+			self::update_sync_status( $order, false, $error_msg );
+			return new WP_Error( 'missing_invoice_id', $error_msg );
+		}
+
+		$order->update_meta_data( 'crm_invoice_id', $invoice_id );
+		$order->update_meta_data( 'crm_member_id', $payload['memberId'] );
+		$order->update_meta_data( 'crm_organization_id', $payload['organizationId'] );
+		$order->update_meta_data( 'crm_source', 'woo-checkout' );
+		$order->update_meta_data( '_awana_checkout_invoice_synced', time() );
+		self::update_sync_status( $order, true );
+
+		Awana_Logger::info( 'Checkout invoice created in CRM', array(
+			'order_id'   => $order->get_id(),
+			'invoice_id' => $invoice_id,
+		) );
+
+		return true;
+	}
+
+	/**
 	 * Send webhook using x-api-key header format.
 	 *
 	 * @param string $url Webhook URL.
