@@ -72,14 +72,11 @@ class Awana_Checkout_Org {
 	 * Enqueue checkout assets.
 	 */
 	public function enqueue_checkout_assets() {
-		if ( ! is_checkout() || ! is_user_logged_in() ) {
+		if ( ! is_checkout() ) {
 			return;
 		}
 
-		$organizations = $this->get_user_organizations();
-		if ( empty( $organizations ) ) {
-			return;
-		}
+		$organizations = is_user_logged_in() ? $this->get_user_organizations() : array();
 
 		$plugin_url = plugin_dir_url( dirname( __FILE__ ) );
 
@@ -113,28 +110,17 @@ class Awana_Checkout_Org {
 	 * Render the 3-step checkout wizard.
 	 */
 	public function render_payment_type_selector() {
-		if ( ! is_user_logged_in() ) {
-			return;
-		}
-
-		$organizations = $this->get_user_organizations();
-
-		if ( empty( $organizations ) ) {
-			return;
-		}
-
-		$options = $this->build_options( $organizations );
-		if ( empty( $options ) ) {
-			return;
-		}
+		$organizations = is_user_logged_in() ? $this->get_user_organizations() : array();
+		$options       = $this->build_options( $organizations );
+		$has_orgs      = ! empty( $options );
 
 		// Add "Velg organisasjon" placeholder if more than one option.
-		if ( count( $options ) > 1 ) {
+		if ( $has_orgs && count( $options ) > 1 ) {
 			$options = array( '' => __( 'Velg organisasjon', 'awana-commerce' ) ) + $options;
 		}
 
 		?>
-		<div class="awana-checkout-wizard">
+		<div class="awana-checkout-wizard" data-has-orgs="<?php echo $has_orgs ? '1' : '0'; ?>">
 			<!-- Step Progress Indicator -->
 			<div class="awana-checkout-steps" role="navigation" aria-label="<?php esc_attr_e( 'Checkout progress', 'awana-commerce' ); ?>">
 				<div class="awana-step active" data-step="1" aria-current="step">
