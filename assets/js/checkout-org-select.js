@@ -56,6 +56,8 @@
 				return;
 			}
 
+			this.hasOrgs = this.$wizard.data('has-orgs') === 1;
+
 			this.$steps = this.$wizard.find('.awana-step');
 			this.$stepContents = this.$wizard.find('.awana-step-content');
 			this.$typeCards = this.$wizard.find('.awana-type-card');
@@ -71,6 +73,23 @@
 
 			// Add active class to body
 			$('body').addClass('awana-wizard-active');
+
+			// If no organizations, skip step 1 and start on step 2
+			if (!this.hasOrgs) {
+				this.currentStep = 2;
+				// Hide step 1 content
+				this.$wizard.find('.awana-step-content[data-step="1"]').removeClass('active').hide();
+				this.$wizard.find('.awana-step-content[data-step="2"]').addClass('active');
+				// Hide step 1 indicator and its connector
+				this.$wizard.find('.awana-step[data-step="1"]').hide();
+				this.$wizard.find('.awana-step[data-step="1"]').next('.awana-step__connector').hide();
+				// Renumber visible steps to 1 and 2
+				this.$wizard.find('.awana-step[data-step="2"] .awana-step__number').text('1');
+				this.$wizard.find('.awana-step[data-step="3"] .awana-step__number').text('2');
+				// Hide "back to step 1" buttons
+				this.$wizard.find('.awana-btn-back[data-prev-step="1"]').hide();
+				this.paymentType = 'private';
+			}
 
 			// Position wizard full-width
 			this.positionWizard();
@@ -493,6 +512,19 @@
 				var prevStep = $(this).data('prev-step');
 				self.goToStep(prevStep);
 			});
+
+			// Step indicator click navigation
+			this.$steps.on('click', function() {
+				var targetStep = $(this).data('step');
+				// Only allow navigating to completed steps or current step
+				if (targetStep < self.currentStep) {
+					self.goToStep(targetStep);
+				} else if (targetStep === self.currentStep + 1) {
+					// Allow going one step forward (triggers validation)
+					self.goToStep(targetStep);
+				}
+			});
+			this.$steps.css('cursor', 'pointer');
 
 			// Update original values after WooCommerce checkout updates
 			$(document.body).on('updated_checkout', function() {
