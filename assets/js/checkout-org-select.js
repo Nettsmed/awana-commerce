@@ -625,6 +625,37 @@
 		},
 
 		/**
+		 * Normalize phone to E.164-ish Norwegian format expected by Nets Easy.
+		 * Returns input unchanged if it can't be confidently mapped.
+		 *
+		 * @param {string} phone - Raw phone number from CRM
+		 * @return {string}
+		 */
+		normalizePhone: function(phone) {
+			if (!phone) {
+				return '';
+			}
+			var raw = String(phone).trim();
+			if (raw.charAt(0) === '+') {
+				return raw;
+			}
+			var digits = raw.replace(/\D/g, '');
+			if (!digits) {
+				return raw;
+			}
+			if (digits.indexOf('00') === 0) {
+				return '+' + digits.substring(2);
+			}
+			if (digits.length === 10 && digits.indexOf('47') === 0) {
+				return '+' + digits;
+			}
+			if (digits.length === 8) {
+				return '+47 ' + digits;
+			}
+			return raw;
+		},
+
+		/**
 		 * Fill billing fields from organization data.
 		 *
 		 * @param {object} org - Organization data
@@ -645,8 +676,8 @@
 				this.setFieldValue('billing_city', '');
 			}
 
-			// Contact fields
-			this.setFieldValue('billing_phone', org.billingPhone || '');
+			// Contact fields — normalize so Nets Easy doesn't reject missing +47
+			this.setFieldValue('billing_phone', this.normalizePhone(org.billingPhone));
 
 			var emailValue = org.billingEmail || '';
 			if (!emailValue && typeof awanaOrgData !== 'undefined' && awanaOrgData.userEmail) {
