@@ -575,12 +575,17 @@
 				var selectedOrg = this.$orgSelect.val();
 				if (selectedOrg) {
 					this.handleOrgSelection(selectedOrg);
+					// handleOrgSelection already triggers update_checkout.
+					return;
 				}
 			} else {
 				this.$orgDropdown.removeClass('visible');
 				this.selectedOrg = null;
 				this.restoreOriginalBilling();
 			}
+
+			// Refresh WC checkout so the backend can re-filter gateways (faktura gated to bedrift).
+			$(document.body).trigger('update_checkout');
 		},
 
 		/**

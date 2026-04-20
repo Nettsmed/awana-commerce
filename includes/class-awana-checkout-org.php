@@ -39,6 +39,8 @@ class Awana_Checkout_Org {
 		add_action( 'woocommerce_before_checkout_billing_form', array( $instance, 'render_payment_type_selector' ) );
 		add_action( 'woocommerce_checkout_process', array( $instance, 'validate_checkout_field' ) );
 		add_action( 'woocommerce_checkout_create_order', array( $instance, 'save_checkout_field' ), 10, 2 );
+		add_action( 'woocommerce_checkout_update_order_review', array( $instance, 'capture_payment_type_from_review' ) );
+		add_filter( 'woocommerce_available_payment_gateways', array( $instance, 'filter_gateways_by_payment_type' ) );
 		add_action( 'wp_enqueue_scripts', array( $instance, 'enqueue_checkout_assets' ) );
 		add_action( 'add_meta_boxes', array( $instance, 'add_order_meta_box' ) );
 		add_action( 'woocommerce_admin_order_data_after_billing_address', array( $instance, 'display_org_info_in_order' ) );
@@ -296,6 +298,67 @@ class Awana_Checkout_Org {
 		if ( ! $this->find_org_by_id( $organizations, $selected ) ) {
 			wc_add_notice( __( 'Ugyldig organisasjonsvalg.', 'awana-commerce' ), 'error' );
 		}
+	}
+
+	/**
+	 * Persist selected customer type to the WC session during AJAX update_checkout,
+	 * so gateway filtering has access to it outside the form-submit request.
+	 *
+	 * @param string $post_data Serialized checkout form data.
+	 */
+	public function capture_payment_type_from_review( $post_data ) {
+		if ( ! WC()->session ) {
+			return;
+		}
+
+		parse_str( (string) $post_data, $data );
+		$type = isset( $data[ self::FIELD_PAYMENT_TYPE ] )
+			? wc_clean( wp_unslash( $data[ self::FIELD_PAYMENT_TYPE ] ) )
+			: 'private';
+
+		if ( ! in_array( $type, array( 'private', 'organization' ), true ) ) {
+			$type = 'private';
+		}
+
+		WC()->session->set( 'awana_payment_type', $type );
+	}
+
+	/**
+	 * Remove the invoice (bacs) gateway for private customers.
+	 * Only bedrift-valg skal kunne velge faktura.
+	 *
+	 * @param array $gateways Available gateways keyed by id.
+	 * @return array
+	 */
+	public function filter_gateways_by_payment_type( $gateways ) {
+		if ( is_admin() && ! wp_doing_ajax() ) {
+			return $gateways;
+		}
+
+		if ( ! isset( $gateways['bacs'] ) ) {
+			return $gateways;
+		}
+
+		$type = 'private';
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		if ( isset( $_POST[ self::FIELD_PAYMENT_TYPE ] ) ) {
+			$type = wc_clean( wp_unslash( $_POST[ self::FIELD_PAYMENT_TYPE ] ) );
+		} elseif ( isset( $_POST['post_data'] ) ) {
+			parse_str( wp_unslash( $_POST['post_data'] ), $parsed );
+			if ( isset( $parsed[ self::FIELD_PAYMENT_TYPE ] ) ) {
+				$type = wc_clean( $parsed[ self::FIELD_PAYMENT_TYPE ] );
+			}
+		} elseif ( WC()->session ) {
+			$type = WC()->session->get( 'awana_payment_type', 'private' );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+		if ( 'organization' !== $type ) {
+			unset( $gateways['bacs'] );
+		}
+
+		return $gateways;
 	}
 
 	/**
