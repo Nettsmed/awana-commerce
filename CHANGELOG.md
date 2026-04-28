@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-28
+
+### Added
+- **Awana Sync Helse**: nytt overvåkingssystem som forhindrer 13-dagers stille sync-incidents (som Integrera-incidenten 15.04–28.04). Ny tab i `Awana Sync` admin-page.
+- 5 helsesjekk-regler kjører hver 30. min mot WC-DB og varsler ved problemer:
+  - Pending Nets >2t (gul) — fanger død WC-cron
+  - On-hold Faktura >48t uten POG-kobling (rød) — catch-all for Integrera-pipen
+  - B2B Nets uten Firebase crm_invoice_id >1t (gul) — Firebase createCheckoutInvoice-feil
+  - Migrasjons-orphans (gul) — Faktura uten _awana_payment_type
+  - Sist vellykket POG-mapping >24t (rød)
+- Per-rule dedup-mekanisme: ingen ny mail om samme regel innen 24t (transient-basert).
+- Daglig sammendrag kl 08:00 Europe/Oslo, sender uavhengig av status.
+- Per-ordre tracking via nye meta-keys: `_awana_health_last_attempt_ts`, `_awana_health_last_attempt_error`, `_awana_health_dismissed`.
+- Ny wp_option `awana_health_last_pog_sync` oppdateres ved hver vellykkede checkout-invoice-sync.
+- Color-blind safe severity-indikatorer (`!`, `?`, `✓`).
+- Sentry breadcrumb på alarm-trigger (krever Sentry SDK aktiv).
+
+### Configuration (wp-config.php)
+- `AWANA_HEALTH_ALERT_RECIPIENTS` (CSV) — påkrevd for at mail skal sendes
+- `AWANA_HEALTH_DEDUP_HOURS` (int, default 24) — overstyr dedup-vinduet
+
+### Changed
+- `Awana_B2B_Sync_Status::render_page()` har nå tab-navigasjon (B2B-ordrer + Helse).
+- `Awana_CRM_Webhook::handle_checkout_invoice_response()` populerer `_awana_health_last_attempt_*` meta + `awana_health_last_pog_sync` option.
+
 ## [1.2.2] - 2026-04-20
 
 ### Fixed
