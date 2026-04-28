@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-28
+
+### Changed
+- **Konsolidert admin-UI**: tidligere to admin-sider (`?page=awana-sync` legacy + `?page=awana-b2b-sync` nyere) er slått sammen til én side på `?page=awana-sync`.
+- Tre tabber: **Ordrer** (alle WC-ordrer med sync-status, ikke bare CRM-orienterte), **Mislykkede syncs**, **Helse**.
+- Ordrer-tab erstatter dagens "Recent sync activity" / "Completed not synced" / "High error count" — alt smelter sammen til én paginert tabell med søk og filter-chips.
+- Type-kolonne klassifiserer hver ordre som B2B / B2C / Faktura-import. B2C vises som "N/A" i sync-status-kolonnen (B2C-sync er ikke implementert ennå — på roadmap).
+- Datalag bruker nå direkte SQL mot `wp_wc_orders` (HPOS) for paginering — løser O(N)-per-sidevisning på den gamle "load all order objects then paginate"-tilnærmingen.
+
+### Removed
+- `?page=awana-b2b-sync` (legacy URL fra v1.2.0). Gamle bookmarks redirectes automatisk til `?page=awana-sync` med `tab=ordrer&filter=b2b` (eller `tab=helse` hvis det var Helse-tabben).
+- `Awana_B2B_Sync_Status`-klassen (logikken konsolidert inn i `Awana_Admin`).
+
 ## [1.3.0] - 2026-04-28
 
 ### Added
@@ -18,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-rule dedup-mekanisme: ingen ny mail om samme regel innen 24t (transient-basert).
 - Daglig sammendrag kl 08:00 Europe/Oslo, sender uavhengig av status.
 - Per-ordre tracking via nye meta-keys: `_awana_health_last_attempt_ts`, `_awana_health_last_attempt_error`, `_awana_health_dismissed`.
-- Ny wp_option `awana_health_last_pog_sync` oppdateres ved hver vellykkede checkout-invoice-sync.
+- Ny wp_option `awana_health_last_firebase_sync` oppdateres ved hver vellykkede checkout-invoice-sync (legacy navn `awana_health_last_pog_sync` migreres automatisk på første lesing).
 - Color-blind safe severity-indikatorer (`!`, `?`, `✓`).
 - Sentry breadcrumb på alarm-trigger (krever Sentry SDK aktiv).
 
@@ -28,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `Awana_B2B_Sync_Status::render_page()` har nå tab-navigasjon (B2B-ordrer + Helse).
-- `Awana_CRM_Webhook::handle_checkout_invoice_response()` populerer `_awana_health_last_attempt_*` meta + `awana_health_last_pog_sync` option.
+- `Awana_CRM_Webhook::handle_checkout_invoice_response()` populerer `_awana_health_last_attempt_*` meta + `awana_health_last_firebase_sync` option.
 
 ## [1.2.2] - 2026-04-20
 
