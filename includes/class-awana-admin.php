@@ -59,8 +59,16 @@ class Awana_Admin {
 	 *
 	 * Preserves the tab parameter — old "helse" tab still works, and the old
 	 * "b2b" tab maps to the new "ordrer" tab with filter=b2b applied.
+	 *
+	 * Only redirects on GET. POST submissions to the legacy URL (e.g. a stale
+	 * tab still showing the old retry form) would otherwise have their body
+	 * silently dropped — better to fall through and let WP show "you don't
+	 * have access" so the user notices and reloads.
 	 */
 	public function maybe_redirect_legacy_page() {
+		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'GET' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
 		if ( empty( $_GET['page'] ) || self::LEGACY_PAGE !== $_GET['page'] ) {
 			return;
 		}
@@ -122,17 +130,22 @@ class Awana_Admin {
 						nonce: '<?php echo esc_js( $nonce_sync ); ?>'
 					},
 					success: function(response) {
+						// Use jQuery DOM-construction + .text() so response.data.message
+						// can't inject HTML (it can echo upstream Firebase/POG errors).
 						if (response.success) {
-							$row.append(' <span style="color:green;">✓ ' + response.data.message + '</span>');
+							var $msg = $('<span>').css('color', 'green').text(' ✓ ' + response.data.message);
+							$row.append($msg);
 							$button.remove();
 							setTimeout(function() { location.reload(); }, 1500);
 						} else {
-							$row.append(' <span style="color:red;">✗ ' + (response.data && response.data.message || 'Error') + '</span>');
+							var errMsg = (response.data && response.data.message) || 'Error';
+							var $err = $('<span>').css('color', 'red').text(' ✗ ' + errMsg);
+							$row.append($err);
 							$button.prop('disabled', false).text(originalText);
 						}
 					},
 					error: function() {
-						$row.append(' <span style="color:red;"><?php echo esc_js( __( 'Request failed', 'awana-commerce' ) ); ?></span>');
+						$row.append($('<span>').css('color', 'red').text(' <?php echo esc_js( __( 'Request failed', 'awana-commerce' ) ); ?>'));
 						$button.prop('disabled', false).text(originalText);
 					}
 				});
@@ -157,17 +170,25 @@ class Awana_Admin {
 						nonce: '<?php echo esc_js( $nonce_retry_b2b ); ?>'
 					},
 					success: function(response) {
+						// Use .text() for response.data.message — it can echo
+						// upstream Firebase error bodies (attacker-influenced).
+						// Construct via jQuery DOM ($('<span>').text()) instead of
+						// concatenating into .html(). Same pattern as the deleted
+						// Awana_B2B_Sync_Status used to.
 						if (response.success) {
-							$row.find('.awana-status-cell').html('<span style="color:green;font-weight:bold;">' + response.data.message + '</span>');
+							var $msg = $('<span>').css({color: 'green', fontWeight: 'bold'}).text(response.data.message);
+							$row.find('.awana-status-cell').empty().append($msg);
 							$button.text('<?php echo esc_js( __( 'Done', 'awana-commerce' ) ); ?>');
 							setTimeout(function() { location.reload(); }, 2000);
 						} else {
-							$row.find('.awana-status-cell').append('<br><span style="color:red;">' + (response.data && response.data.message || 'Unknown error') + '</span>');
+							var errMsg = (response.data && response.data.message) || 'Unknown error';
+							var $err = $('<span>').css({color: 'red'}).text(errMsg);
+							$row.find('.awana-status-cell').append('<br>').append($err);
 							$button.prop('disabled', false).text(originalText);
 						}
 					},
 					error: function() {
-						$row.find('.awana-status-cell').append('<br><span style="color:red;"><?php echo esc_js( __( 'Request failed', 'awana-commerce' ) ); ?></span>');
+						$row.find('.awana-status-cell').append($('<br>')).append($('<span>').css({color: 'red'}).text('<?php echo esc_js( __( 'Request failed', 'awana-commerce' ) ); ?>'));
 						$button.prop('disabled', false).text(originalText);
 					}
 				});
@@ -233,6 +254,14 @@ class Awana_Admin {
 	 * notices land above the tab nav.
 	 */
 	private function handle_post_submissions() {
+		// Capability check — render_admin_page() is already gated by the menu's
+		// 'manage_woocommerce' cap, but we re-check here so a future change to
+		// expose this page under a lower cap doesn't silently widen who can
+		// trigger sync. AJAX handlers do the same.
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
 		if ( isset( $_POST['awana_manual_sync'] ) && check_admin_referer( 'awana_manual_sync', 'awana_manual_sync_nonce' ) ) {
 			$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
 			if ( $order_id > 0 ) {
@@ -270,7 +299,7 @@ class Awana_Admin {
 			<?php esc_html_e( 'Alle WooCommerce-ordrer med sync-status. B2B (Nets) og fakturaimporter har CRM-kobling i dag — B2C synkroniseres ikke ennå (på roadmap).', 'awana-commerce' ); ?>
 		</p>
 
-		<?php $this->render_search_form( $search ); ?>
+		<?php $this->render_search_form( $search, $filter ); ?>
 		<?php $this->render_summary_cards( $summary ); ?>
 		<?php $this->render_filter_chips( $filter, $summary ); ?>
 		<?php $this->render_orders_table( $orders ); ?>
@@ -281,12 +310,16 @@ class Awana_Admin {
 
 	/**
 	 * Search form — works on the Ordrer tab. Submits via GET so deep-linkable.
+	 *
+	 * Preserves the active filter so searching while on a B2B/B2C/etc. filter
+	 * doesn't silently revert to "Alle".
 	 */
-	private function render_search_form( $search ) {
+	private function render_search_form( $search, $filter = 'all' ) {
 		?>
 		<form method="get" action="" style="margin:20px 0;padding:12px;background:#fff;border:1px solid #ccd0d4;">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_SLUG ); ?>" />
 			<input type="hidden" name="tab" value="ordrer" />
+			<input type="hidden" name="filter" value="<?php echo esc_attr( $filter ); ?>" />
 			<label for="awana_search" style="font-weight:600;margin-right:8px;">
 				<?php esc_html_e( 'Søk på ordre-ID, ordrenummer eller CRM-invoice-ID:', 'awana-commerce' ); ?>
 			</label>
@@ -673,7 +706,8 @@ class Awana_Admin {
 	private function get_orders_page( $filter, $paged, $search = '' ) {
 		global $wpdb;
 
-		$where  = array( '1=1' );
+		// Same status filter as get_orders_summary() — keeps card count and table count consistent.
+		$where  = array( "o.status NOT IN ('trash', 'auto-draft')" );
 		$joins  = array();
 		$params = array();
 
@@ -751,35 +785,47 @@ class Awana_Admin {
 	private function get_orders_summary() {
 		global $wpdb;
 
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders WHERE status NOT IN ('trash', 'auto-draft')" );
+		// All count queries below filter out trash + auto-draft to keep the stat
+		// cards consistent with the Ordrer-tab table (which applies the same
+		// filter in get_orders_page()).
+		$status_filter = "o.status NOT IN ('trash', 'auto-draft')";
+
+		$total = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders o WHERE {$status_filter}"
+		);
 
 		$b2b = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders_meta
-			 WHERE meta_key = '_awana_payment_type' AND meta_value = 'organization'"
+			"SELECT COUNT(DISTINCT o.id) FROM {$wpdb->prefix}wc_orders o
+			 JOIN {$wpdb->prefix}wc_orders_meta pt ON o.id = pt.order_id AND pt.meta_key = '_awana_payment_type' AND pt.meta_value = 'organization'
+			 WHERE {$status_filter}"
 		);
 
 		$invoice_total = (int) $wpdb->get_var(
-			"SELECT COUNT(DISTINCT inv.order_id) FROM {$wpdb->prefix}wc_orders_meta inv
-			 LEFT JOIN {$wpdb->prefix}wc_orders_meta pt ON inv.order_id = pt.order_id AND pt.meta_key = '_awana_payment_type'
-			 WHERE inv.meta_key = 'crm_invoice_id'
+			"SELECT COUNT(DISTINCT o.id) FROM {$wpdb->prefix}wc_orders o
+			 JOIN {$wpdb->prefix}wc_orders_meta inv ON o.id = inv.order_id AND inv.meta_key = 'crm_invoice_id'
+			 LEFT JOIN {$wpdb->prefix}wc_orders_meta pt ON o.id = pt.order_id AND pt.meta_key = '_awana_payment_type'
+			 WHERE {$status_filter}
 			   AND (pt.meta_value IS NULL OR pt.meta_value <> 'organization')"
 		);
 
 		$b2c = max( 0, $total - $b2b - $invoice_total );
 
 		$synced = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders_meta
-			 WHERE meta_key = 'crm_sync_woo' AND meta_value = 'success'"
+			"SELECT COUNT(DISTINCT o.id) FROM {$wpdb->prefix}wc_orders o
+			 JOIN {$wpdb->prefix}wc_orders_meta sm ON o.id = sm.order_id AND sm.meta_key = 'crm_sync_woo' AND sm.meta_value = 'success'
+			 WHERE {$status_filter}"
 		);
 		$pending = (int) $wpdb->get_var(
-			"SELECT COUNT(o.id) FROM {$wpdb->prefix}wc_orders o
+			"SELECT COUNT(DISTINCT o.id) FROM {$wpdb->prefix}wc_orders o
 			 JOIN {$wpdb->prefix}wc_orders_meta pt ON o.id = pt.order_id AND pt.meta_key = '_awana_payment_type' AND pt.meta_value = 'organization'
 			 LEFT JOIN {$wpdb->prefix}wc_orders_meta inv ON o.id = inv.order_id AND inv.meta_key = 'crm_invoice_id'
-			 WHERE (inv.meta_value IS NULL OR inv.meta_value = '')"
+			 WHERE {$status_filter}
+			   AND (inv.meta_value IS NULL OR inv.meta_value = '')"
 		);
 		$failed = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders_meta
-			 WHERE meta_key = '_awana_sync_last_error' AND meta_value <> ''"
+			"SELECT COUNT(DISTINCT o.id) FROM {$wpdb->prefix}wc_orders o
+			 JOIN {$wpdb->prefix}wc_orders_meta em ON o.id = em.order_id AND em.meta_key = '_awana_sync_last_error' AND em.meta_value <> ''
+			 WHERE {$status_filter}"
 		);
 
 		return array(
