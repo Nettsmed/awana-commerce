@@ -40,10 +40,185 @@ class Awana_Health_Check {
 	/**
 	 * Initialize hooks (cron, AJAX, etc.).
 	 *
-	 * Currently only data layer — UI/cron added in later steps.
+	 * UI is wired up via Awana_B2B_Sync_Status::render_page() (tab='helse').
+	 * Cron + AJAX added in later steps.
 	 */
 	public static function init() {
-		// Hooks registered in Step 5 (cron) and later.
+		// AJAX/cron hooks registered in later steps.
+	}
+
+	/**
+	 * Render the Helse tab content.
+	 */
+	public static function render_health_tab() {
+		$results = self::run_checks();
+		?>
+		<div style="margin-top: 16px;">
+			<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+				<p style="color: #50575e; margin: 0;">
+					<?php esc_html_e( 'Sjekker WC-DB hver 30. min for ordrer som SKULLE vært synket men ikke er det. Catch-all for Integrera- og Firebase-feil.', 'awana-commerce' ); ?>
+				</p>
+				<a href="<?php echo esc_url( add_query_arg( 'refresh', time() ) ); ?>" class="button button-primary">
+					↻ <?php esc_html_e( 'Refresh nå', 'awana-commerce' ); ?>
+				</a>
+			</div>
+
+			<?php self::render_summary_cards( $results ); ?>
+
+			<?php self::render_stuck_orders_section( $results ); ?>
+
+			<?php self::render_settings_block(); ?>
+		</div>
+
+		<style>
+		.awana-health-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+		@media (max-width: 1100px) { .awana-health-grid { grid-template-columns: repeat(2, 1fr); } }
+		.awana-health-card { background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #c3c4c7; border-radius: 3px; padding: 14px 16px; }
+		.awana-health-card.red    { border-left-color: #d63638; }
+		.awana-health-card.yellow { border-left-color: #dba617; }
+		.awana-health-card.green  { border-left-color: #00a32a; }
+		.awana-health-card .h-label { font-size: 11px; color: #50575e; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 4px; }
+		.awana-health-card .h-status { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+		.awana-health-card.red    .h-status { color: #b32d2e; }
+		.awana-health-card.yellow .h-status { color: #b26200; }
+		.awana-health-card.green  .h-status { color: #00733e; }
+		.awana-health-card .h-detail { font-size: 12px; color: #646970; line-height: 1.45; }
+		.awana-stuck-section { background: #fff; border: 1px solid #c3c4c7; border-radius: 3px; margin-bottom: 16px; }
+		.awana-stuck-section h3 { background: #f6f7f7; border-bottom: 1px solid #c3c4c7; margin: 0; padding: 12px 16px; font-size: 14px; }
+		.awana-stuck-section table { width: 100%; border-collapse: collapse; }
+		.awana-stuck-section th, .awana-stuck-section td { padding: 8px 12px; text-align: left; font-size: 12px; border-bottom: 1px solid #f0f0f1; }
+		.awana-stuck-section th { background: #f6f7f7; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
+		.awana-stuck-section .num { text-align: right; font-variant-numeric: tabular-nums; }
+		</style>
+		<?php
+	}
+
+	/**
+	 * Render the 5 health-cards grid.
+	 */
+	private static function render_summary_cards( array $results ) {
+		echo '<div class="awana-health-grid">';
+		foreach ( $results as $rule_id => $rule ) {
+			$severity = esc_attr( $rule['severity'] );
+			?>
+			<div class="awana-health-card <?php echo $severity; ?>">
+				<div class="h-label"><?php echo esc_html( $rule['label'] ); ?></div>
+				<div class="h-status">
+					<?php echo self::severity_icon( $rule['severity'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped — static safe HTML ?>
+					<?php
+					if ( self::RULE_LAST_POG_SYNC === $rule_id ) {
+						echo esc_html( $rule['age_human'] ?? '—' );
+					} else {
+						printf( '%d ordrer', (int) $rule['count'] );
+					}
+					?>
+				</div>
+				<div class="h-detail">
+					<?php
+					if ( $rule['count'] > 0 && $rule['sum_amount'] > 0 ) {
+						printf( 'Sum: %s kr · ', esc_html( number_format( $rule['sum_amount'], 0, ',', ' ' ) ) );
+					}
+					echo esc_html( $rule['description'] );
+					?>
+				</div>
+			</div>
+			<?php
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Render detail tables for each rule with affected orders.
+	 */
+	private static function render_stuck_orders_section( array $results ) {
+		foreach ( $results as $rule_id => $rule ) {
+			if ( empty( $rule['orders'] ) ) {
+				continue;
+			}
+			$visible = array_slice( $rule['orders'], 0, 10 );
+			$rest    = max( 0, $rule['count'] - 10 );
+			?>
+			<div class="awana-stuck-section">
+				<h3>
+					<?php echo esc_html( $rule['label'] ); ?>
+					<span style="font-weight: normal; color: #646970; font-size: 12px;">
+						(<?php echo (int) $rule['count']; ?> ordrer<?php if ( $rule['sum_amount'] > 0 ) : ?>, sum <?php echo esc_html( number_format( $rule['sum_amount'], 0, ',', ' ' ) ); ?> kr<?php endif; ?>)
+					</span>
+				</h3>
+				<table>
+					<thead>
+						<tr>
+							<th>Ordre</th>
+							<th>Dato (UTC)</th>
+							<th class="num">Beløp</th>
+							<th>E-post</th>
+							<th class="num">Alder (t)</th>
+							<th>Handling</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $visible as $row ) : ?>
+							<tr>
+								<td>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-orders&action=edit&id=' . (int) $row['id'] ) ); ?>" target="_blank">
+										#<?php echo (int) $row['id']; ?>
+									</a>
+								</td>
+								<td><?php echo esc_html( $row['date_gmt'] ); ?></td>
+								<td class="num"><?php echo esc_html( number_format( (float) $row['total'], 0, ',', ' ' ) ); ?></td>
+								<td><?php echo esc_html( $row['email'] ); ?></td>
+								<td class="num"><?php echo (int) $row['age_hours']; ?></td>
+								<td>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-orders&action=edit&id=' . (int) $row['id'] ) ); ?>" target="_blank" class="button button-small">
+										Åpne
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+						<?php if ( $rest > 0 ) : ?>
+							<tr>
+								<td colspan="6" style="text-align: center; color: #646970; font-style: italic;">
+									+ <?php echo (int) $rest; ?> flere ordre
+								</td>
+							</tr>
+						<?php endif; ?>
+					</tbody>
+				</table>
+			</div>
+			<?php
+		}
+	}
+
+	/**
+	 * Render configuration info block.
+	 */
+	private static function render_settings_block() {
+		$recipients = defined( 'AWANA_HEALTH_ALERT_RECIPIENTS' ) ? AWANA_HEALTH_ALERT_RECIPIENTS : '(ikke konfigurert ennå — sett AWANA_HEALTH_ALERT_RECIPIENTS i wp-config.php)';
+		$dedup      = defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS;
+		?>
+		<div class="awana-stuck-section">
+			<h3><?php esc_html_e( 'Konfigurasjon', 'awana-commerce' ); ?></h3>
+			<table>
+				<tr><td style="color: #646970; width: 220px;">Cron-frekvens</td><td>Hver 30 min (kommer i Steg 5)</td></tr>
+				<tr><td style="color: #646970;">Daglig sammendrag</td><td>Kl 08:00 Europe/Oslo (kommer i Steg 5)</td></tr>
+				<tr><td style="color: #646970;">Mottakere</td><td><?php echo esc_html( $recipients ); ?></td></tr>
+				<tr><td style="color: #646970;">Dedup-vindu</td><td><?php echo (int) $dedup; ?> timer per regel</td></tr>
+				<tr><td style="color: #646970;">wp_option for siste sync</td><td><code><?php echo esc_html( self::OPTION_LAST_SYNC ); ?></code></td></tr>
+			</table>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Color-blind safe icon for severity level.
+	 */
+	private static function severity_icon( string $severity ): string {
+		switch ( $severity ) {
+			case self::SEVERITY_RED:    return '<span style="color:#d63638; font-weight:700; margin-right:6px;">!</span>';
+			case self::SEVERITY_YELLOW: return '<span style="color:#dba617; font-weight:700; margin-right:6px;">?</span>';
+			case self::SEVERITY_GREEN:  return '<span style="color:#00a32a; font-weight:700; margin-right:6px;">✓</span>';
+			default:                    return '';
+		}
 	}
 
 	/**
