@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-28
+
+### Added
+- **B2C → CRM-sync**: privatkunde-ordrer (alt som ikke er organization-checkout) synkroniseres nå til Eiriks Firebase CRM via samme `createCheckoutInvoice`-pipeline som B2B. Cloud Function har fått `type: "b2c"`-modus som resolver eller oppretter individual-member basert på e-post.
+- `Awana_CRM_Webhook::build_b2c_invoice_payload()` — bygger payload uten member-/org-IDer, sender med `type: "b2c"` + contactName.
+- Ny WC-meta-key `crm_source` får verdi `woo-b2c-checkout` for B2C-ordrer (fortsatt `woo-checkout` for B2B).
+
+### Changed
+- `should_sync_checkout_invoice()` tillater nå B2C-ordrer (krever billing email, ekskluderer Faktura/`bacs` siden den fortsatt er B2B-only per v1.2.2).
+- `build_checkout_invoice_payload()` brancher på payment_type til separate B2B/B2C-builders. Felles `build_invoice_lines()` deler line-item-logikken.
+- `handle_checkout_invoice_response()` håndterer nå tilfellet hvor `memberId` kommer fra response-body (B2C, server-resolved) i stedet for payload (B2B, klient-spesifisert).
+
+### Antagelser (venter Eirik-validering 2026-04-30)
+- Match B2C-kjøpere mot eksisterende members via `email`-feltet i Firebase. Hvis Awana bruker et annet felt (f.eks. `billingEmail` som primær key), må Cloud Function-koden justeres.
+- Nye B2C-members får `type: "individual"`. Justeres hvis Awana ønsker en annen markør.
+- Backfill av historiske B2C-ordrer er IKKE i denne versjonen — kun nye ordrer fra deploy-dato.
+- POG-håndtering antas samme som B2B Nets: `syncStatus.pog: "not_applicable"` (Nets bokføres månedlig via Integrera).
+
 ## [1.4.0] - 2026-04-28
 
 ### Changed

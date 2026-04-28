@@ -477,9 +477,16 @@ class Awana_CRM_Webhook {
 	}
 
 	/**
-	 * Create invoice in Firebase CRM for B2B checkout orders paid via Nets.
+	 * Create invoice in Firebase CRM for checkout orders paid via Nets.
 	 * Called after payment is confirmed. Stores returned invoiceId on the order
 	 * so the existing webhook pipeline (Integrera/POG/CRM status sync) takes over.
+	 *
+	 * Supports two flows:
+	 *  - B2B (organization payment_type): existing flow, uses org/member IDs
+	 *    selected during checkout wizard.
+	 *  - B2C (everything else with billing email): server-side member resolution
+	 *    by email — Cloud Function finds existing member or creates a new
+	 *    individual member. Added in v1.5.0.
 	 *
 	 * @param WC_Order $order WooCommerce order object.
 	 * @return bool|WP_Error True on success, WP_Error on failure.
@@ -502,18 +509,20 @@ class Awana_CRM_Webhook {
 	/**
 	 * Check if a checkout invoice should be synced to CRM.
 	 *
+	 * Allowed: B2B orders (organization payment_type) and B2C orders with a
+	 * billing email. B2C-Faktura (bacs) is excluded — Faktura is B2B-only per
+	 * v1.2.2, and that's enforced at checkout via gateway-filter.
+	 *
 	 * @param WC_Order $order WooCommerce order.
 	 * @return bool
 	 */
 	private static function should_sync_checkout_invoice( $order ) {
-		if ( 'organization' !== $order->get_meta( '_awana_payment_type', true ) ) {
-			return false;
-		}
-
+		// Already synced — nothing to do.
 		if ( $order->get_meta( '_awana_checkout_invoice_synced', true ) ) {
 			return false;
 		}
 
+		// Required configuration must be present.
 		if ( ! defined( 'AWANA_FIREBASE_CHECKOUT_INVOICE_URL' ) || empty( AWANA_FIREBASE_CHECKOUT_INVOICE_URL ) ) {
 			Awana_Logger::error(
 				'AWANA_FIREBASE_CHECKOUT_INVOICE_URL not configured in wp-config.php',
@@ -521,12 +530,29 @@ class Awana_CRM_Webhook {
 			);
 			return false;
 		}
-
 		if ( ! defined( 'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY' ) || empty( AWANA_INVOICE_STATUS_WEBHOOK_API_KEY ) ) {
 			Awana_Logger::error(
 				'AWANA_INVOICE_STATUS_WEBHOOK_API_KEY not configured in wp-config.php',
 				array( 'order_id' => $order->get_id() )
 			);
+			return false;
+		}
+
+		$payment_type = $order->get_meta( '_awana_payment_type', true );
+
+		// B2B path — must have org+member IDs from checkout wizard.
+		if ( 'organization' === $payment_type ) {
+			return true;
+		}
+
+		// B2C path — needs a billing email so the Cloud Function can resolve
+		// or create an individual member. Skip Faktura (bacs) for B2C as it's
+		// blocked at checkout for non-organization customers.
+		if ( $order->get_payment_method() === 'bacs' ) {
+			return false;
+		}
+
+		if ( empty( $order->get_billing_email() ) ) {
 			return false;
 		}
 
@@ -536,34 +562,39 @@ class Awana_CRM_Webhook {
 	/**
 	 * Build the payload for a checkout invoice CRM request.
 	 *
+	 * Branches on payment_type: organization → B2B payload, anything else →
+	 * B2C payload (includes type=b2c flag so the Cloud Function knows to
+	 * resolve member by email server-side).
+	 *
 	 * @param WC_Order $order WooCommerce order.
 	 * @return array|WP_Error Payload array or WP_Error if missing required data.
 	 */
 	private static function build_checkout_invoice_payload( $order ) {
+		$payment_type = $order->get_meta( '_awana_payment_type', true );
+		$is_b2b       = ( 'organization' === $payment_type );
+
+		if ( $is_b2b ) {
+			return self::build_b2b_invoice_payload( $order );
+		}
+		return self::build_b2c_invoice_payload( $order );
+	}
+
+	/**
+	 * Build payload for a B2B (organization) checkout invoice.
+	 *
+	 * Existing behavior — preserved as-is for compatibility with the
+	 * Cloud Function's B2B mode.
+	 */
+	private static function build_b2b_invoice_payload( $order ) {
 		$organization_id = $order->get_meta( '_awana_selected_org_id', true );
 		$member_id       = $order->get_meta( '_awana_selected_org_member_id', true );
 
 		if ( empty( $organization_id ) || empty( $member_id ) ) {
 			Awana_Logger::warning(
-				'Cannot create checkout invoice - missing org_id or member_id',
+				'Cannot create B2B checkout invoice - missing org_id or member_id',
 				array( 'order_id' => $order->get_id() )
 			);
 			return new WP_Error( 'missing_data', 'Missing org_id or member_id' );
-		}
-
-		$invoice_lines = array();
-		foreach ( $order->get_items() as $item ) {
-			$product         = $item->get_product();
-			$invoice_lines[] = array(
-				'description'  => $item->get_name(),
-				'quantity'     => $item->get_quantity(),
-				'unitPrice'    => (float) ( $item->get_total() / max( $item->get_quantity(), 1 ) ),
-				'total'        => (float) $item->get_total(),
-				'tax'          => (float) $item->get_total_tax(),
-				'productId'    => $product ? $product->get_id() : null,
-				'sku'          => $product ? $product->get_sku() : null,
-				'pogProductId' => $item->get_meta( 'pog_product_id', true ) ?: null,
-			);
 		}
 
 		return array(
@@ -573,7 +604,7 @@ class Awana_CRM_Webhook {
 			'email'             => $order->get_billing_email(),
 			'orgNumber'         => $order->get_meta( 'org_number', true ) ?: null,
 			'pogCustomerNumber' => $order->get_meta( '_pog_customer_id', true ) ?: null,
-			'invoiceLines'      => $invoice_lines,
+			'invoiceLines'      => self::build_invoice_lines( $order ),
 			'total'             => (float) $order->get_total(),
 			'totalTax'          => (float) $order->get_total_tax(),
 			'currency'          => $order->get_currency(),
@@ -584,6 +615,64 @@ class Awana_CRM_Webhook {
 			),
 			'wooOrderId'        => $order->get_id(),
 		);
+	}
+
+	/**
+	 * Build payload for a B2C (private customer) checkout invoice.
+	 *
+	 * No member-/org-IDs — Cloud Function will resolve or create an
+	 * individual member based on the email. Sends a `contactName` so
+	 * the CF can populate it on member creation.
+	 */
+	private static function build_b2c_invoice_payload( $order ) {
+		$email = $order->get_billing_email();
+		if ( empty( $email ) ) {
+			Awana_Logger::warning(
+				'Cannot create B2C checkout invoice - missing billing email',
+				array( 'order_id' => $order->get_id() )
+			);
+			return new WP_Error( 'missing_email', 'Missing billing email' );
+		}
+
+		$contact_name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+
+		return array(
+			'type'           => 'b2c',
+			'email'          => $email,
+			'contactName'    => $contact_name,
+			'invoiceLines'   => self::build_invoice_lines( $order ),
+			'total'          => (float) $order->get_total(),
+			'totalTax'       => (float) $order->get_total_tax(),
+			'currency'       => $order->get_currency(),
+			'billingAddress' => array(
+				'street'     => $order->get_billing_address_1(),
+				'postalCode' => $order->get_billing_postcode(),
+				'city'       => $order->get_billing_city(),
+				'country'    => $order->get_billing_country(),
+			),
+			'wooOrderId'     => $order->get_id(),
+		);
+	}
+
+	/**
+	 * Shared invoice-lines builder — same shape for B2B and B2C.
+	 */
+	private static function build_invoice_lines( $order ) {
+		$lines = array();
+		foreach ( $order->get_items() as $item ) {
+			$product = $item->get_product();
+			$lines[] = array(
+				'description'  => $item->get_name(),
+				'quantity'     => $item->get_quantity(),
+				'unitPrice'    => (float) ( $item->get_total() / max( $item->get_quantity(), 1 ) ),
+				'total'        => (float) $item->get_total(),
+				'tax'          => (float) $item->get_total_tax(),
+				'productId'    => $product ? $product->get_id() : null,
+				'sku'          => $product ? $product->get_sku() : null,
+				'pogProductId' => $item->get_meta( 'pog_product_id', true ) ?: null,
+			);
+		}
+		return $lines;
 	}
 
 	/**
@@ -655,10 +744,22 @@ class Awana_CRM_Webhook {
 			return new WP_Error( 'missing_invoice_id', $error_msg );
 		}
 
+		// memberId resolution: for B2B, payload contains it. For B2C, the
+		// Cloud Function resolves/creates server-side and returns it in body.
+		$is_b2c     = ( ! empty( $payload['type'] ) && 'b2c' === $payload['type'] );
+		$member_id  = $is_b2c
+			? ( ! empty( $body['memberId'] ) ? $body['memberId'] : null )
+			: $payload['memberId'];
+		$crm_source = $is_b2c ? 'woo-b2c-checkout' : 'woo-checkout';
+
 		$order->update_meta_data( 'crm_invoice_id', $invoice_id );
-		$order->update_meta_data( 'crm_member_id', $payload['memberId'] );
-		$order->update_meta_data( 'crm_organization_id', $payload['organizationId'] );
-		$order->update_meta_data( 'crm_source', 'woo-checkout' );
+		if ( ! empty( $member_id ) ) {
+			$order->update_meta_data( 'crm_member_id', $member_id );
+		}
+		if ( ! $is_b2c && ! empty( $payload['organizationId'] ) ) {
+			$order->update_meta_data( 'crm_organization_id', $payload['organizationId'] );
+		}
+		$order->update_meta_data( 'crm_source', $crm_source );
 		$order->update_meta_data( '_awana_checkout_invoice_synced', time() );
 		// Clear any previous error since this attempt succeeded.
 		$order->delete_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR );
