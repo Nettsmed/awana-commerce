@@ -321,10 +321,10 @@ class Awana_Admin {
 			<input type="hidden" name="tab" value="ordrer" />
 			<input type="hidden" name="filter" value="<?php echo esc_attr( $filter ); ?>" />
 			<label for="awana_search" style="font-weight:600;margin-right:8px;">
-				<?php esc_html_e( 'Søk på ordre-ID, ordrenummer eller CRM-invoice-ID:', 'awana-commerce' ); ?>
+				<?php esc_html_e( 'Søk:', 'awana-commerce' ); ?>
 			</label>
 			<input type="text" id="awana_search" name="awana_search" value="<?php echo esc_attr( $search ); ?>"
-			       class="regular-text" placeholder="f.eks. 94247 eller invoice-id" style="width:300px;" />
+			       class="regular-text" placeholder="<?php esc_attr_e( 'Ordre-ID, navn, e-post, organisasjon, CRM-invoice-ID', 'awana-commerce' ); ?>" style="width:380px;" />
 			<?php submit_button( __( 'Søk', 'awana-commerce' ), 'secondary', 'submit', false ); ?>
 			<?php if ( ! empty( $search ) ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=ordrer' ) ); ?>" class="button">
@@ -716,12 +716,24 @@ class Awana_Admin {
 		$joins  = array();
 		$params = array();
 
-		// Search by order ID / order number / invoice ID.
+		// Search across order ID, billing email, billing first/last name,
+		// company, organization meta, and CRM invoice ID. Numeric search also
+		// matches order ID exactly (so "94247" finds order 94247 even though
+		// LIKE-ing it across other fields wouldn't).
 		if ( ! empty( $search ) ) {
-			$joins['search']  = "LEFT JOIN {$wpdb->prefix}wc_orders_meta inv_search ON o.id = inv_search.order_id AND inv_search.meta_key = 'crm_invoice_id'";
-			$where[]          = '(o.id = %d OR inv_search.meta_value = %s)';
-			$params[]         = absint( $search );
-			$params[]         = $search;
+			$joins['inv_search']  = "LEFT JOIN {$wpdb->prefix}wc_orders_meta inv_search ON o.id = inv_search.order_id AND inv_search.meta_key = 'crm_invoice_id'";
+			$joins['org_search']  = "LEFT JOIN {$wpdb->prefix}wc_orders_meta org_search ON o.id = org_search.order_id AND org_search.meta_key = '_awana_selected_org_title'";
+			$joins['addr_search'] = "LEFT JOIN {$wpdb->prefix}wc_order_addresses addr_search ON o.id = addr_search.order_id AND addr_search.address_type = 'billing'";
+
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[]  = '(o.id = %d OR o.billing_email LIKE %s OR addr_search.first_name LIKE %s OR addr_search.last_name LIKE %s OR addr_search.company LIKE %s OR org_search.meta_value LIKE %s OR inv_search.meta_value = %s)';
+			$params[] = absint( $search );
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $search;
 		}
 
 		// Filter joins.
