@@ -172,25 +172,60 @@ class Awana_B2B_Sync_Status {
 	 * Render the admin page (orchestrator)
 	 */
 	public function render_page() {
+		$tab        = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'b2b';
+		$valid_tabs = array( 'b2b', 'helse' );
+		if ( ! in_array( $tab, $valid_tabs, true ) ) {
+			$tab = 'b2b';
+		}
+		$page_url = admin_url( 'admin.php?page=awana-b2b-sync' );
+		?>
+		<div class="wrap">
+			<h1><?php echo esc_html( __( 'Awana Sync', 'awana-commerce' ) ); ?></h1>
+
+			<nav class="nav-tab-wrapper" style="margin-top: 12px;">
+				<a href="<?php echo esc_url( add_query_arg( 'tab', 'b2b', $page_url ) ); ?>"
+				   class="nav-tab <?php echo 'b2b' === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'B2B-ordrer', 'awana-commerce' ); ?>
+				</a>
+				<a href="<?php echo esc_url( add_query_arg( 'tab', 'helse', $page_url ) ); ?>"
+				   class="nav-tab <?php echo 'helse' === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Helse', 'awana-commerce' ); ?>
+				</a>
+			</nav>
+
+			<?php
+			if ( 'helse' === $tab ) {
+				if ( class_exists( 'Awana_Health_Check' ) ) {
+					Awana_Health_Check::render_health_tab();
+				} else {
+					echo '<div class="notice notice-error"><p>' . esc_html__( 'Awana_Health_Check class not loaded.', 'awana-commerce' ) . '</p></div>';
+				}
+			} else {
+				$this->render_b2b_tab();
+			}
+			?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the legacy B2B-orders tab content.
+	 */
+	private function render_b2b_tab() {
 		$filter  = isset( $_GET['filter'] ) ? sanitize_text_field( $_GET['filter'] ) : 'all';
 		$paged   = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
 		$summary = $this->get_summary();
 		$orders  = $this->get_b2b_orders( $filter, $paged );
 
 		?>
-		<div class="wrap">
-			<h1><?php echo esc_html( __( 'CRM Order Sync', 'awana-commerce' ) ); ?></h1>
-			<p style="color: #50575e; margin-top: -5px;">
-				<?php echo esc_html( __( 'All orders with CRM integration — B2B checkout (Nets) and invoice-created orders.', 'awana-commerce' ) ); ?>
-			</p>
-			<?php
-			$this->render_summary_cards( $summary );
-			$this->render_filters( $filter, $summary );
-			$this->render_orders_table( $orders );
-			$this->render_pagination( $orders, $filter, $paged );
-			?>
-		</div>
+		<p style="color: #50575e; margin-top: 12px;">
+			<?php echo esc_html( __( 'All orders with CRM integration — B2B checkout (Nets) and invoice-created orders.', 'awana-commerce' ) ); ?>
+		</p>
 		<?php
+		$this->render_summary_cards( $summary );
+		$this->render_filters( $filter, $summary );
+		$this->render_orders_table( $orders );
+		$this->render_pagination( $orders, $filter, $paged );
 	}
 
 	/**

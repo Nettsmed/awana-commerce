@@ -612,11 +612,16 @@ class Awana_CRM_Webhook {
 	 * @return bool|WP_Error True on success, WP_Error on failure.
 	 */
 	private static function handle_checkout_invoice_response( $order, $response, $payload ) {
+		// Always update last attempt timestamp for health-check tracking.
+		$now_gmt = current_time( 'mysql', true );
+		$order->update_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_TS, $now_gmt );
+
 		if ( is_wp_error( $response ) ) {
 			Awana_Logger::error( 'Checkout invoice request failed', array(
 				'order_id' => $order->get_id(),
 				'error'    => $response->get_error_message(),
 			) );
+			$order->update_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR, $response->get_error_message() );
 			self::update_sync_status( $order, false, $response->get_error_message() );
 			return $response;
 		}
@@ -631,6 +636,7 @@ class Awana_CRM_Webhook {
 				'status_code' => $status_code,
 				'response'    => $response_body,
 			) );
+			$order->update_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR, $error_msg );
 			self::update_sync_status( $order, false, $error_msg );
 			return new WP_Error( 'webhook_failed', $error_msg );
 		}
@@ -644,6 +650,7 @@ class Awana_CRM_Webhook {
 				'order_id' => $order->get_id(),
 				'response' => $response_body,
 			) );
+			$order->update_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR, $error_msg );
 			self::update_sync_status( $order, false, $error_msg );
 			return new WP_Error( 'missing_invoice_id', $error_msg );
 		}
@@ -653,7 +660,12 @@ class Awana_CRM_Webhook {
 		$order->update_meta_data( 'crm_organization_id', $payload['organizationId'] );
 		$order->update_meta_data( 'crm_source', 'woo-checkout' );
 		$order->update_meta_data( '_awana_checkout_invoice_synced', time() );
+		// Clear any previous error since this attempt succeeded.
+		$order->delete_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR );
 		self::update_sync_status( $order, true );
+
+		// Track globally — used by Awana_Health_Check Rule 5 (Sist Firebase-sync).
+		update_option( Awana_Health_Check::OPTION_LAST_FIREBASE_SYNC, $now_gmt, false );
 
 		Awana_Logger::info( 'Checkout invoice created in CRM', array(
 			'order_id'   => $order->get_id(),

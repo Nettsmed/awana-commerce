@@ -91,6 +91,13 @@ AWANA_INVOICE_STATUS_WEBHOOK_API_KEY — x-api-key for status webhook + checkout
 AWANA_FIREBASE_CHECKOUT_INVOICE_URL — createCheckoutInvoice endpoint (B2B checkout → CRM)
 ```
 
+### Helse-system constants
+
+```
+AWANA_HEALTH_ALERT_RECIPIENTS — CSV of e-mail addresses; required for alerts to send
+AWANA_HEALTH_DEDUP_HOURS      — int, optional (default 24). Per-rule mail dedup window.
+```
+
 ## Order Meta Keys (Do Not Rename)
 
 These are stored on existing orders in production — renaming would break data:
@@ -101,3 +108,10 @@ These are stored on existing orders in production — renaming would break data:
 - Dedup markers: `_pog_customer_synced_to_crm`, `_pog_invoice_number_synced_to_crm`, `_pog_kid_number_synced_to_crm`, `_pog_status_synced_to_crm`, `_awana_checkout_invoice_synced`
 - Checkout: `_awana_selected_org_id`, `_awana_selected_org_member_id`, `_awana_selected_org_title`, `_awana_payment_type`
 - User meta: `_awana_organizations`, `_awana_orgs_last_sync`
+- Helse-system (per-order): `_awana_health_dismissed`, `_awana_health_dismissed_by`, `_awana_health_dismissed_note`, `_awana_health_last_attempt_ts`, `_awana_health_last_attempt_error`
+
+## wp_options Used by Helse-system
+
+- `awana_health_last_firebase_sync` — UTC timestamp string of the most recent successful Firebase `createCheckoutInvoice` call. Used by Rule 5 (Sist Firebase-sync).
+- `awana_health_last_pog_sync` — legacy alias of the above; auto-migrated to the new key on first read after deploy. Safe to delete after migration.
+- `awana_health_alert_sent_<rule_id>` — per-rule dedup-key (autoload=false). Created via atomic `add_option()` to make parallel cron-dispatches idempotent. TTL is encoded in the value.
