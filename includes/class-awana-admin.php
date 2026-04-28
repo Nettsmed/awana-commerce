@@ -706,8 +706,13 @@ class Awana_Admin {
 	private function get_orders_page( $filter, $paged, $search = '' ) {
 		global $wpdb;
 
-		// Same status filter as get_orders_summary() — keeps card count and table count consistent.
-		$where  = array( "o.status NOT IN ('trash', 'auto-draft')" );
+		// Same filters as get_orders_summary() — wc_orders also holds refunds
+		// (type=shop_order_refund); we only want real orders here. Status filter
+		// keeps card count and table count consistent.
+		$where  = array(
+			"o.type = 'shop_order'",
+			"o.status NOT IN ('trash', 'auto-draft')",
+		);
 		$joins  = array();
 		$params = array();
 
@@ -785,10 +790,12 @@ class Awana_Admin {
 	private function get_orders_summary() {
 		global $wpdb;
 
-		// All count queries below filter out trash + auto-draft to keep the stat
-		// cards consistent with the Ordrer-tab table (which applies the same
-		// filter in get_orders_page()).
-		$status_filter = "o.status NOT IN ('trash', 'auto-draft')";
+		// All count queries below apply the same filter set as get_orders_page():
+		//   - type='shop_order' excludes refunds (which live in the same wc_orders table)
+		//   - status NOT IN ('trash', 'auto-draft') hides trashed/abandoned drafts
+		// Keeping the filters in lock-step is what makes "Alle (N)" on the cards
+		// match the count shown in the table header.
+		$status_filter = "o.type = 'shop_order' AND o.status NOT IN ('trash', 'auto-draft')";
 
 		$total = (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders o WHERE {$status_filter}"
@@ -844,7 +851,9 @@ class Awana_Admin {
 	 */
 	private function build_order_row( $order_id ) {
 		$order = wc_get_order( $order_id );
-		if ( ! $order ) {
+		if ( ! $order || ! ( $order instanceof WC_Order ) ) {
+			// Guard against refund objects (WC_Order_Refund) — they live in the
+			// same wc_orders table and lack get_billing_*() methods.
 			return null;
 		}
 
