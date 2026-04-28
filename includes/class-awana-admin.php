@@ -23,7 +23,14 @@ class Awana_Admin {
 	const LEGACY_PAGE     = 'awana-b2b-sync';
 	const PER_PAGE        = 50;
 	const VALID_TABS      = array( 'ordrer', 'mislykkede', 'helse' );
-	const VALID_FILTERS   = array( 'all', 'b2b', 'b2c', 'invoice', 'missing_crm', 'errors' );
+	const VALID_FILTERS   = array( 'all', 'b2b', 'b2c', 'invoice', 'missing_crm', 'errors', 'cancelled' );
+
+	// Statuses excluded from the default Ordrer-tab view (and from summary
+	// counts). Use the "Kansellerte" filter chip to surface them on demand.
+	// Rationale: cancelled/failed orders aren't actionable for sync — the bulk
+	// of them on Awana are auto-cancelled Nets-timeouts after the 60-min Hold
+	// Stock window, plus historical test orders.
+	const INACTIVE_STATUSES = array( 'trash', 'auto-draft', 'wc-cancelled', 'wc-failed' );
 
 	/**
 	 * Initialize admin hooks.
@@ -296,7 +303,7 @@ class Awana_Admin {
 		$orders       = $this->get_orders_page( $filter, $paged, $search );
 		?>
 		<p style="color:#50575e;margin-top:12px;">
-			<?php esc_html_e( 'Alle WooCommerce-ordrer med sync-status. B2B (Nets) og fakturaimporter har CRM-kobling i dag — B2C synkroniseres ikke ennå (på roadmap).', 'awana-commerce' ); ?>
+			<?php esc_html_e( 'Aktive WooCommerce-ordrer med sync-status. Kansellerte og failed-ordrer er skjult som default — bruk "Kansellerte"-filteret hvis du trenger å se dem. B2B (Nets) og fakturaimporter har CRM-kobling i dag; B2C synkroniseres ikke ennå (på roadmap).', 'awana-commerce' ); ?>
 		</p>
 
 		<?php $this->render_search_form( $search, $filter ); ?>
@@ -362,12 +369,13 @@ class Awana_Admin {
 	 */
 	private function render_filter_chips( $active_filter, $summary ) {
 		$filters = array(
-			'all'         => array( 'label' => __( 'Alle',          'awana-commerce' ), 'count' => $summary['total'] ),
-			'b2b'         => array( 'label' => __( 'B2B',           'awana-commerce' ), 'count' => $summary['b2b'] ),
-			'b2c'         => array( 'label' => __( 'B2C',           'awana-commerce' ), 'count' => $summary['b2c'] ),
+			'all'         => array( 'label' => __( 'Alle',           'awana-commerce' ), 'count' => $summary['total'] ),
+			'b2b'         => array( 'label' => __( 'B2B',            'awana-commerce' ), 'count' => $summary['b2b'] ),
+			'b2c'         => array( 'label' => __( 'B2C',            'awana-commerce' ), 'count' => $summary['b2c'] ),
 			'invoice'     => array( 'label' => __( 'Faktura-import', 'awana-commerce' ), 'count' => $summary['invoice'] ),
 			'missing_crm' => array( 'label' => __( 'Mangler CRM-ID', 'awana-commerce' ), 'count' => $summary['pending'] ),
-			'errors'      => array( 'label' => __( 'Med feil',      'awana-commerce' ), 'count' => $summary['failed'] ),
+			'errors'      => array( 'label' => __( 'Med feil',       'awana-commerce' ), 'count' => $summary['failed'] ),
+			'cancelled'   => array( 'label' => __( 'Kansellerte',    'awana-commerce' ), 'count' => $summary['cancelled'] ),
 		);
 		$last_key = array_key_last( $filters );
 		?>
@@ -706,15 +714,19 @@ class Awana_Admin {
 	private function get_orders_page( $filter, $paged, $search = '' ) {
 		global $wpdb;
 
-		// Same filters as get_orders_summary() — wc_orders also holds refunds
-		// (type=shop_order_refund); we only want real orders here. Status filter
-		// keeps card count and table count consistent.
-		$where  = array(
-			"o.type = 'shop_order'",
-			"o.status NOT IN ('trash', 'auto-draft')",
-		);
+		// Restrict to real orders (not refunds, which share the wc_orders table).
+		$where  = array( "o.type = 'shop_order'" );
 		$joins  = array();
 		$params = array();
+
+		// Status exclusion. Default = active orders only. The 'cancelled' filter
+		// inverts this to surface only cancelled/failed.
+		if ( 'cancelled' === $filter ) {
+			$where[] = "o.status IN ('wc-cancelled', 'wc-failed')";
+		} else {
+			$inactive_list = "'" . implode( "','", self::INACTIVE_STATUSES ) . "'";
+			$where[]       = "o.status NOT IN ({$inactive_list})";
+		}
 
 		// Search across order ID, billing email, billing first/last name,
 		// company, organization meta, and CRM invoice ID. Numeric search also
@@ -802,12 +814,14 @@ class Awana_Admin {
 	private function get_orders_summary() {
 		global $wpdb;
 
-		// All count queries below apply the same filter set as get_orders_page():
-		//   - type='shop_order' excludes refunds (which live in the same wc_orders table)
-		//   - status NOT IN ('trash', 'auto-draft') hides trashed/abandoned drafts
+		// All "active" count queries below apply the same filter set as
+		// get_orders_page() default view:
+		//   - type='shop_order' excludes refunds (share wc_orders table)
+		//   - status NOT IN INACTIVE_STATUSES hides trash, auto-draft, cancelled, failed
 		// Keeping the filters in lock-step is what makes "Alle (N)" on the cards
 		// match the count shown in the table header.
-		$status_filter = "o.type = 'shop_order' AND o.status NOT IN ('trash', 'auto-draft')";
+		$inactive_list  = "'" . implode( "','", self::INACTIVE_STATUSES ) . "'";
+		$status_filter  = "o.type = 'shop_order' AND o.status NOT IN ({$inactive_list})";
 
 		$total = (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders o WHERE {$status_filter}"
@@ -847,14 +861,22 @@ class Awana_Admin {
 			 WHERE {$status_filter}"
 		);
 
+		// Cancelled/failed (the inverse of the active status_filter, scoped to
+		// shop_order). Used by the "Kansellerte" filter chip.
+		$cancelled = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders o
+			 WHERE o.type = 'shop_order' AND o.status IN ('wc-cancelled', 'wc-failed')"
+		);
+
 		return array(
-			'total'   => $total,
-			'b2b'     => $b2b,
-			'b2c'     => $b2c,
-			'invoice' => $invoice_total,
-			'synced'  => $synced,
-			'pending' => $pending,
-			'failed'  => $failed,
+			'total'     => $total,
+			'b2b'       => $b2b,
+			'b2c'       => $b2c,
+			'invoice'   => $invoice_total,
+			'synced'    => $synced,
+			'pending'   => $pending,
+			'failed'    => $failed,
+			'cancelled' => $cancelled,
 		);
 	}
 
