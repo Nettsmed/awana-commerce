@@ -67,11 +67,13 @@ include_once 'includes/class-awana-order-handler.php';
 include_once 'includes/class-awana-rest-controller.php';
 include_once 'includes/class-awana-org-sync.php';
 include_once 'includes/class-awana-checkout-org.php';
+include_once 'includes/class-awana-health-check.php';
 
 // Initialize the plugin
 Awana_REST_Controller::init();
 Awana_Org_Sync::init();
 Awana_Checkout_Org::init();
+Awana_Health_Check::init();
 
 // Initialize admin UI only in admin context
 if ( is_admin() ) {
