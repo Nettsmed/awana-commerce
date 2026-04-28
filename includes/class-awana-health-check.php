@@ -17,9 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Awana_Health_Check {
 
-	const TRANSIENT_PREFIX = 'awana_health_alert_sent_';
-	const DEDUP_HOURS      = 24;
-	const OPTION_LAST_SYNC = 'awana_health_last_pog_sync';
+	const TRANSIENT_PREFIX        = 'awana_health_alert_sent_';
+	const DEDUP_HOURS             = 24;
+	// Tracks the last successful Firebase createCheckoutInvoice (NOT POG).
+	// True POG-mapping happens in Integrera and is detected indirectly via Rule 2
+	// (on-hold Faktura without pog_customer_number).
+	const OPTION_LAST_FIREBASE_SYNC = 'awana_health_last_firebase_sync';
+	// Backward-compat: previous (misleadingly-named) option from earlier draft.
+	const LEGACY_OPTION_LAST_SYNC   = 'awana_health_last_pog_sync';
 
 	const META_DISMISSED         = '_awana_health_dismissed';
 	const META_DISMISSED_BY      = '_awana_health_dismissed_by';
@@ -27,11 +32,11 @@ class Awana_Health_Check {
 	const META_LAST_ATTEMPT_TS   = '_awana_health_last_attempt_ts';
 	const META_LAST_ATTEMPT_ERR  = '_awana_health_last_attempt_error';
 
-	const RULE_PENDING_NETS         = 'rule_1_pending_nets';
-	const RULE_FAKTURA_NO_POG       = 'rule_2_faktura_no_pog';
-	const RULE_B2B_NETS_NO_FIREBASE = 'rule_3_b2b_nets_no_firebase';
-	const RULE_MIGRATION_ORPHANS    = 'rule_4_migration_orphans';
-	const RULE_LAST_POG_SYNC        = 'rule_5_last_pog_sync';
+	const RULE_PENDING_NETS              = 'rule_1_pending_nets';
+	const RULE_FAKTURA_NO_POG            = 'rule_2_faktura_no_pog';
+	const RULE_B2B_NETS_NO_FIREBASE      = 'rule_3_b2b_nets_no_firebase';
+	const RULE_MIGRATION_ORPHANS         = 'rule_4_migration_orphans';
+	const RULE_LAST_FIREBASE_SYNC        = 'rule_5_last_firebase_sync';
 
 	const SEVERITY_RED    = 'red';
 	const SEVERITY_YELLOW = 'yellow';
@@ -39,22 +44,42 @@ class Awana_Health_Check {
 
 	/**
 	 * Initialize hooks (cron, AJAX, etc.).
+	 *
+	 * Lightweight: only registers callbacks. Schedule-existence is verified
+	 * lazily via maybe_schedule_events() on admin_init (and once on activation)
+	 * so we don't query wp_options on every frontend request.
 	 */
 	public static function init() {
-		// Custom cron interval.
+		// Cron callbacks must register on every load so WP-cron can dispatch them.
 		add_filter( 'cron_schedules', array( __CLASS__, 'add_cron_intervals' ) );
-
-		// Cron hooks.
 		add_action( 'awana_health_check', array( __CLASS__, 'run_cron' ) );
 		add_action( 'awana_health_daily_summary', array( __CLASS__, 'send_daily_summary' ) );
 
-		// Auto-schedule on first load if not yet scheduled.
+		// Schedule-existence check: only on admin requests.
+		add_action( 'admin_init', array( __CLASS__, 'maybe_schedule_events' ) );
+	}
+
+	/**
+	 * Ensure cron events are scheduled. Called on admin_init only — avoids
+	 * wp_options DB-queries on every frontend request.
+	 */
+	public static function maybe_schedule_events() {
 		if ( ! wp_next_scheduled( 'awana_health_check' ) ) {
 			wp_schedule_event( time() + 300, 'awana_thirty_minutes', 'awana_health_check' );
 		}
 		if ( ! wp_next_scheduled( 'awana_health_daily_summary' ) ) {
 			wp_schedule_event( self::next_8am_local(), 'daily', 'awana_health_daily_summary' );
 		}
+	}
+
+	/**
+	 * Plugin deactivation hook callback — clear scheduled events.
+	 *
+	 * Registered via register_deactivation_hook() in awana-commerce.php.
+	 */
+	public static function on_deactivate() {
+		wp_clear_scheduled_hook( 'awana_health_check' );
+		wp_clear_scheduled_hook( 'awana_health_daily_summary' );
 	}
 
 	/**
@@ -69,15 +94,30 @@ class Awana_Health_Check {
 	}
 
 	/**
-	 * Cron callback — run health checks and send alerts on red rules.
+	 * Cron callback — run health checks and send alerts on alertable rules.
+	 *
+	 * Both RED and YELLOW severities trigger alerts so that operational issues
+	 * (e.g. Rule 3: B2B Nets without Firebase) are surfaced within 30 min, not
+	 * only in the daily summary.
+	 *
+	 * Informational rules (e.g. Rule 4: migration orphans — known legacy data
+	 * pending manual cleanup) are excluded via ALERT_EXCLUDED_RULES so they
+	 * appear in summary but don't generate noise.
+	 *
+	 * Per-rule 24h dedup-transient prevents repeat-mail for the same condition.
 	 */
 	public static function run_cron() {
-		$results = self::run_checks();
-		$issues  = array();
+		$excluded = array( self::RULE_MIGRATION_ORPHANS );
+		$results  = self::run_checks();
+		$issues   = array();
 		foreach ( $results as $rule ) {
-			if ( self::SEVERITY_RED === $rule['severity'] ) {
-				$issues[] = $rule;
+			if ( self::SEVERITY_GREEN === $rule['severity'] ) {
+				continue;
 			}
+			if ( in_array( $rule['rule_id'], $excluded, true ) ) {
+				continue;
+			}
+			$issues[] = $rule;
 		}
 		if ( ! empty( $issues ) ) {
 			self::send_alert( $issues );
@@ -93,12 +133,20 @@ class Awana_Health_Check {
 		$dedup_hours = defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? (int) AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS;
 		$to_send     = array();
 		foreach ( $issues as $rule ) {
-			$dedup_key = self::TRANSIENT_PREFIX . $rule['rule_id'];
-			if ( get_transient( $dedup_key ) ) {
-				continue;
+			// Atomic claim via add_option (INSERT IGNORE). If two parallel cron
+			// dispatches race, only one succeeds in claiming the dedup-key.
+			$dedup_key   = self::TRANSIENT_PREFIX . $rule['rule_id'];
+			$dedup_value = (string) ( time() + $dedup_hours * HOUR_IN_SECONDS );
+			if ( ! add_option( $dedup_key, $dedup_value, '', false ) ) {
+				// Already-existing option — check if expired so we can replace.
+				$existing = (int) get_option( $dedup_key, '0' );
+				if ( $existing > time() ) {
+					continue; // Still in dedup window.
+				}
+				// Expired: take over the slot.
+				update_option( $dedup_key, $dedup_value, false );
 			}
 			$to_send[] = $rule;
-			set_transient( $dedup_key, true, $dedup_hours * HOUR_IN_SECONDS );
 		}
 		if ( empty( $to_send ) ) {
 			return;
@@ -167,27 +215,31 @@ class Awana_Health_Check {
 	}
 
 	/**
-	 * Build the alarm-mail body (plain text).
+	 * Build the alarm-mail body (plain text). Uses [RØD]/[GUL] text prefixes
+	 * (color-blind safe) instead of color emoji.
 	 */
 	private static function build_alert_body( array $issues ): string {
-		$body  = "Helsesjekken har funnet problemer som krever oppmerksomhet:\n\n";
+		$body = "Helsesjekken har funnet problemer som krever oppmerksomhet:\n\n";
 		foreach ( $issues as $rule ) {
-			$body .= '🔴 ' . $rule['label'] . "\n";
-			$body .= '   ' . $rule['description'] . "\n";
+			$prefix = self::severity_text_prefix( $rule['severity'] );
+			$body  .= $prefix . ' ' . $rule['label'] . "\n";
+			$body  .= '   ' . $rule['description'] . "\n";
 			if ( $rule['count'] > 0 ) {
 				$body .= sprintf( "   %d ordrer", $rule['count'] );
 				if ( $rule['sum_amount'] > 0 ) {
 					$body .= sprintf( ', sum %s kr', number_format( $rule['sum_amount'], 0, ',', ' ' ) );
 				}
-				$body .= "\n";
+				$body   .= "\n";
 				$preview = array_slice( $rule['orders'], 0, 5 );
 				foreach ( $preview as $order ) {
+					// sanitize_email() strips CRLF and other dangerous chars from
+					// billing_email (kunde-kontrollert via checkout).
 					$body .= sprintf(
 						"     - #%d (%s kr, %d t) %s\n",
-						$order['id'],
+						(int) $order['id'],
 						number_format( (float) $order['total'], 0, ',', ' ' ),
 						(int) $order['age_hours'],
-						$order['email']
+						sanitize_email( $order['email'] )
 					);
 				}
 				if ( $rule['count'] > 5 ) {
@@ -203,16 +255,17 @@ class Awana_Health_Check {
 	}
 
 	/**
-	 * Build the daily summary mail body (plain text).
+	 * Build the daily summary mail body (plain text). Uses [RØD]/[GUL]/[GRØN]
+	 * prefixes for color-blind accessibility.
 	 */
 	private static function build_summary_body( array $results ): string {
-		$body  = sprintf( "Sync-status %s:\n\n", date_i18n( 'd.m.Y' ) );
+		$body = sprintf( "Sync-status %s:\n\n", date_i18n( 'd.m.Y' ) );
 		foreach ( $results as $rule_id => $rule ) {
-			$dot = self::SEVERITY_RED === $rule['severity'] ? '🔴' : ( self::SEVERITY_YELLOW === $rule['severity'] ? '🟡' : '🟢' );
-			if ( self::RULE_LAST_POG_SYNC === $rule_id ) {
-				$body .= sprintf( "%s %s — %s\n", $dot, $rule['label'], $rule['age_human'] ?? 'aldri' );
+			$prefix = self::severity_text_prefix( $rule['severity'] );
+			if ( self::RULE_LAST_FIREBASE_SYNC === $rule_id ) {
+				$body .= sprintf( "%s %s — %s\n", $prefix, $rule['label'], $rule['age_human'] ?? 'aldri' );
 			} else {
-				$line = sprintf( '%s %s — %d ordrer', $dot, $rule['label'], (int) $rule['count'] );
+				$line = sprintf( '%s %s — %d ordrer', $prefix, $rule['label'], (int) $rule['count'] );
 				if ( $rule['sum_amount'] > 0 ) {
 					$line .= sprintf( ' (≈ %s kr)', number_format( $rule['sum_amount'], 0, ',', ' ' ) );
 				}
@@ -222,6 +275,18 @@ class Awana_Health_Check {
 		$body .= "\n----\n";
 		$body .= 'Se Awana Sync → Helse: ' . admin_url( 'admin.php?page=awana-b2b-sync&tab=helse' ) . "\n";
 		return $body;
+	}
+
+	/**
+	 * Color-blind safe text prefix for severity (used in mail bodies).
+	 */
+	private static function severity_text_prefix( string $severity ): string {
+		switch ( $severity ) {
+			case self::SEVERITY_RED:    return '[RØD]';
+			case self::SEVERITY_YELLOW: return '[GUL]';
+			case self::SEVERITY_GREEN:  return '[GRØN]';
+			default:                    return '[—]';
+		}
 	}
 
 	/**
@@ -304,7 +369,7 @@ class Awana_Health_Check {
 				<div class="h-status">
 					<?php echo self::severity_icon( $rule['severity'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped — static safe HTML ?>
 					<?php
-					if ( self::RULE_LAST_POG_SYNC === $rule_id ) {
+					if ( self::RULE_LAST_FIREBASE_SYNC === $rule_id ) {
 						echo esc_html( $rule['age_human'] ?? '—' );
 					} else {
 						printf( '%d ordrer', (int) $rule['count'] );
@@ -397,11 +462,11 @@ class Awana_Health_Check {
 		<div class="awana-stuck-section">
 			<h3><?php esc_html_e( 'Konfigurasjon', 'awana-commerce' ); ?></h3>
 			<table>
-				<tr><td style="color: #646970; width: 220px;">Cron-frekvens</td><td>Hver 30 min (kommer i Steg 5)</td></tr>
-				<tr><td style="color: #646970;">Daglig sammendrag</td><td>Kl 08:00 Europe/Oslo (kommer i Steg 5)</td></tr>
+				<tr><td style="color: #646970; width: 220px;">Cron-frekvens</td><td>Hver 30. min · neste: <code><?php echo esc_html( self::next_run_label( 'awana_health_check' ) ); ?></code></td></tr>
+				<tr><td style="color: #646970;">Daglig sammendrag</td><td>Kl 08:00 Europe/Oslo · neste: <code><?php echo esc_html( self::next_run_label( 'awana_health_daily_summary' ) ); ?></code></td></tr>
 				<tr><td style="color: #646970;">Mottakere</td><td><?php echo esc_html( $recipients ); ?></td></tr>
 				<tr><td style="color: #646970;">Dedup-vindu</td><td><?php echo (int) $dedup; ?> timer per regel</td></tr>
-				<tr><td style="color: #646970;">wp_option for siste sync</td><td><code><?php echo esc_html( self::OPTION_LAST_SYNC ); ?></code></td></tr>
+				<tr><td style="color: #646970;">wp_option for siste sync</td><td><code><?php echo esc_html( self::OPTION_LAST_FIREBASE_SYNC ); ?></code></td></tr>
 			</table>
 		</div>
 		<?php
@@ -430,7 +495,7 @@ class Awana_Health_Check {
 			self::RULE_FAKTURA_NO_POG       => self::rule_2_faktura_no_pog(),
 			self::RULE_B2B_NETS_NO_FIREBASE => self::rule_3_b2b_nets_no_firebase(),
 			self::RULE_MIGRATION_ORPHANS    => self::rule_4_migration_orphans(),
-			self::RULE_LAST_POG_SYNC        => self::rule_5_last_pog_sync(),
+			self::RULE_LAST_FIREBASE_SYNC   => self::rule_5_last_firebase_sync(),
 		);
 	}
 
@@ -610,24 +675,40 @@ class Awana_Health_Check {
 	/**
 	 * Regel 5 — Sist vellykket POG-mapping > 24t (rød).
 	 *
-	 * Tracks awana_health_last_pog_sync option, which is updated by
+	 * Tracks the awana_health_last_firebase_sync option, which is updated by
 	 * Awana_CRM_Webhook::handle_checkout_invoice_response() on success.
+	 *
+	 * NOTE: This is a Firebase-pipeline signal, not a POG-mapping signal.
+	 * Integrera updates POG independently and we don't have a direct hook for
+	 * "last successful POG-mapping" — that path is detected indirectly via
+	 * Rule 2 (on-hold Faktura without pog_customer_number).
 	 */
-	private static function rule_5_last_pog_sync(): array {
-		$last_sync_str = get_option( self::OPTION_LAST_SYNC );
+	private static function rule_5_last_firebase_sync(): array {
+		// Read from current option, fall back to legacy option name (one-shot
+		// migration: copy over so the legacy key is no longer needed).
+		$last_sync_str = get_option( self::OPTION_LAST_FIREBASE_SYNC );
+		if ( empty( $last_sync_str ) ) {
+			$legacy = get_option( self::LEGACY_OPTION_LAST_SYNC );
+			if ( ! empty( $legacy ) ) {
+				$last_sync_str = $legacy;
+				update_option( self::OPTION_LAST_FIREBASE_SYNC, $legacy, false );
+				delete_option( self::LEGACY_OPTION_LAST_SYNC );
+			}
+		}
 
 		if ( empty( $last_sync_str ) ) {
-			// Never recorded — return yellow (not red — could be a fresh install)
+			// Never recorded — return yellow (not red — could be a fresh install
+			// or simply no B2B Nets activity yet).
 			return self::make_result(
-				self::RULE_LAST_POG_SYNC,
-				'Sist POG-mapping',
-				'Tidspunkt for siste vellykkede POG-mapping har ikke blitt registrert ennå. Aktiveres ved første POG-suksess etter at trackingen er deployet.',
+				self::RULE_LAST_FIREBASE_SYNC,
+				'Sist Firebase-sync',
+				'Tidspunkt for siste vellykkede Firebase createCheckoutInvoice har ikke blitt registrert ennå. Aktiveres ved første B2B-Nets-suksess etter at trackingen er deployet.',
 				self::SEVERITY_YELLOW,
 				array(),
 				array(
-					'last_sync_ts'  => null,
-					'age_hours'     => null,
-					'age_human'     => 'aldri',
+					'last_sync_ts' => null,
+					'age_hours'    => null,
+					'age_human'    => 'aldri',
 				)
 			);
 		}
@@ -639,9 +720,9 @@ class Awana_Health_Check {
 		$severity = $age_hours > 24 ? self::SEVERITY_RED : self::SEVERITY_GREEN;
 
 		return self::make_result(
-			self::RULE_LAST_POG_SYNC,
-			'Sist POG-mapping',
-			sprintf( 'Siste vellykkede POG-mapping var %d timer siden (%s). Skal være < 24t hvis trafikken er normal.', $age_hours, $last_sync_str ),
+			self::RULE_LAST_FIREBASE_SYNC,
+			'Sist Firebase-sync',
+			sprintf( 'Siste vellykkede Firebase createCheckoutInvoice var %d timer siden (%s).', $age_hours, $last_sync_str ),
 			$severity,
 			array(),
 			array(
@@ -650,5 +731,16 @@ class Awana_Health_Check {
 				'age_human'    => human_time_diff( $last_sync_ts, time() ) . ' siden',
 			)
 		);
+	}
+
+	/**
+	 * Helper: human-readable next-run for a cron hook.
+	 */
+	private static function next_run_label( string $hook ): string {
+		$ts = wp_next_scheduled( $hook );
+		if ( ! $ts ) {
+			return 'ikke schedulert';
+		}
+		return wp_date( 'd.m H:i', $ts ) . ' (' . human_time_diff( time(), $ts ) . ')';
 	}
 }

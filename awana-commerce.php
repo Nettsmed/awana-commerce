@@ -75,6 +75,9 @@ Awana_Org_Sync::init();
 Awana_Checkout_Org::init();
 Awana_Health_Check::init();
 
+// Clear scheduled cron events when the plugin is deactivated.
+register_deactivation_hook( __FILE__, array( 'Awana_Health_Check', 'on_deactivate' ) );
+
 // Initialize admin UI only in admin context
 if ( is_admin() ) {
 	include_once 'includes/class-awana-admin.php';

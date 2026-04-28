@@ -664,8 +664,8 @@ class Awana_CRM_Webhook {
 		$order->delete_meta_data( Awana_Health_Check::META_LAST_ATTEMPT_ERR );
 		self::update_sync_status( $order, true );
 
-		// Track globally — used by Awana_Health_Check Rule 5.
-		update_option( Awana_Health_Check::OPTION_LAST_SYNC, $now_gmt, false );
+		// Track globally — used by Awana_Health_Check Rule 5 (Sist Firebase-sync).
+		update_option( Awana_Health_Check::OPTION_LAST_FIREBASE_SYNC, $now_gmt, false );
 
 		Awana_Logger::info( 'Checkout invoice created in CRM', array(
 			'order_id'   => $order->get_id(),
