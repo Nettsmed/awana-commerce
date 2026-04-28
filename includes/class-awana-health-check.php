@@ -249,7 +249,7 @@ class Awana_Health_Check {
 			$body .= "\n";
 		}
 		$body .= "\n----\n";
-		$body .= 'Se detaljer: ' . admin_url( 'admin.php?page=awana-b2b-sync&tab=helse' ) . "\n\n";
+		$body .= 'Se detaljer: ' . admin_url( 'admin.php?page=awana-sync&tab=helse' ) . "\n\n";
 		$body .= sprintf( '(Ingen ny mail om samme regel innen %d timer. Definer AWANA_HEALTH_DEDUP_HOURS i wp-config.php for å justere.)', defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? (int) AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS );
 		return $body;
 	}
@@ -273,7 +273,7 @@ class Awana_Health_Check {
 			}
 		}
 		$body .= "\n----\n";
-		$body .= 'Se Awana Sync → Helse: ' . admin_url( 'admin.php?page=awana-b2b-sync&tab=helse' ) . "\n";
+		$body .= 'Se Awana Sync → Helse: ' . admin_url( 'admin.php?page=awana-sync&tab=helse' ) . "\n";
 		return $body;
 	}
 

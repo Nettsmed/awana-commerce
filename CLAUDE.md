@@ -28,8 +28,7 @@ The core flow: CRM creates invoices → Woo receives them via REST API → Integ
 | `Awana_CRM_Webhook` | `includes/class-awana-crm-webhook.php` | Outbound webhooks to CRM. Two endpoints: `invoiceCustomerNumberWebhook` and `invoiceStatusWebhook` |
 | `Awana_Org_Sync` | `includes/class-awana-org-sync.php` | Firebase org sync with TTL-based refresh (4h) on cart/checkout pages |
 | `Awana_Checkout_Org` | `includes/class-awana-checkout-org.php` | B2B 3-step checkout wizard with org selector and billing auto-fill |
-| `Awana_Admin` | `includes/class-awana-admin.php` | Admin dashboard: sync stats, failed syncs, manual sync, health checks |
-| `Awana_B2B_Sync_Status` | `includes/class-awana-b2b-sync-status.php` | CRM Sync admin page: B2B order sync status, retry, POG tracking |
+| `Awana_Admin` | `includes/class-awana-admin.php` | Single consolidated admin page (`?page=awana-sync`) with three tabs: Ordrer / Mislykkede syncs / Helse. Replaces the v1.2.0–v1.3.0 split (legacy `awana-sync` + newer `awana-b2b-sync`). Old URL redirects automatically. |
 | `Awana_Debug` | `includes/class-awana-debug.php` | Debug page for org sync validation, Firebase UID management |
 | `Awana_Logger` | `includes/class-awana-logger.php` | Wrapper around WooCommerce logger (source: `awana_digital`) |
 
