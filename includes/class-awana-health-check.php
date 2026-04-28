@@ -39,12 +39,210 @@ class Awana_Health_Check {
 
 	/**
 	 * Initialize hooks (cron, AJAX, etc.).
-	 *
-	 * UI is wired up via Awana_B2B_Sync_Status::render_page() (tab='helse').
-	 * Cron + AJAX added in later steps.
 	 */
 	public static function init() {
-		// AJAX/cron hooks registered in later steps.
+		// Custom cron interval.
+		add_filter( 'cron_schedules', array( __CLASS__, 'add_cron_intervals' ) );
+
+		// Cron hooks.
+		add_action( 'awana_health_check', array( __CLASS__, 'run_cron' ) );
+		add_action( 'awana_health_daily_summary', array( __CLASS__, 'send_daily_summary' ) );
+
+		// Auto-schedule on first load if not yet scheduled.
+		if ( ! wp_next_scheduled( 'awana_health_check' ) ) {
+			wp_schedule_event( time() + 300, 'awana_thirty_minutes', 'awana_health_check' );
+		}
+		if ( ! wp_next_scheduled( 'awana_health_daily_summary' ) ) {
+			wp_schedule_event( self::next_8am_local(), 'daily', 'awana_health_daily_summary' );
+		}
+	}
+
+	/**
+	 * Add 30-minute cron interval.
+	 */
+	public static function add_cron_intervals( $schedules ) {
+		$schedules['awana_thirty_minutes'] = array(
+			'interval' => 30 * MINUTE_IN_SECONDS,
+			'display'  => 'Hver 30. min (Awana Sync)',
+		);
+		return $schedules;
+	}
+
+	/**
+	 * Cron callback — run health checks and send alerts on red rules.
+	 */
+	public static function run_cron() {
+		$results = self::run_checks();
+		$issues  = array();
+		foreach ( $results as $rule ) {
+			if ( self::SEVERITY_RED === $rule['severity'] ) {
+				$issues[] = $rule;
+			}
+		}
+		if ( ! empty( $issues ) ) {
+			self::send_alert( $issues );
+		}
+	}
+
+	/**
+	 * Send alarm e-mail with dedup per rule.
+	 *
+	 * @param array $issues Red-severity rules from run_checks().
+	 */
+	public static function send_alert( array $issues ) {
+		$dedup_hours = defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? (int) AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS;
+		$to_send     = array();
+		foreach ( $issues as $rule ) {
+			$dedup_key = self::TRANSIENT_PREFIX . $rule['rule_id'];
+			if ( get_transient( $dedup_key ) ) {
+				continue;
+			}
+			$to_send[] = $rule;
+			set_transient( $dedup_key, true, $dedup_hours * HOUR_IN_SECONDS );
+		}
+		if ( empty( $to_send ) ) {
+			return;
+		}
+
+		$recipients = self::get_alert_recipients();
+		if ( empty( $recipients ) ) {
+			Awana_Logger::warning( 'awana_health: no AWANA_HEALTH_ALERT_RECIPIENTS configured, skipping mail' );
+			return;
+		}
+
+		$subject = sprintf( '[Awana Sync] %d %s trigget — handling kreves', count( $to_send ), count( $to_send ) === 1 ? 'regel' : 'regler' );
+		$body    = self::build_alert_body( $to_send );
+		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+
+		wp_mail( $recipients, $subject, $body, $headers );
+
+		Awana_Logger::info( 'awana_health: alarm sent', array(
+			'recipients' => $recipients,
+			'rules'      => array_column( $to_send, 'rule_id' ),
+		) );
+
+		// Sentry breadcrumb if available.
+		if ( function_exists( '\\Sentry\\addBreadcrumb' ) ) {
+			\Sentry\addBreadcrumb( new \Sentry\Breadcrumb(
+				\Sentry\Breadcrumb::LEVEL_WARNING,
+				\Sentry\Breadcrumb::TYPE_DEFAULT,
+				'awana_health',
+				$subject,
+				array( 'rules' => array_column( $to_send, 'rule_id' ) )
+			) );
+		}
+	}
+
+	/**
+	 * Daily summary cron callback — sends regardless of state.
+	 */
+	public static function send_daily_summary() {
+		$results    = self::run_checks();
+		$recipients = self::get_alert_recipients();
+		if ( empty( $recipients ) ) {
+			return;
+		}
+
+		$counts = array(
+			'red'    => 0,
+			'yellow' => 0,
+			'green'  => 0,
+		);
+		foreach ( $results as $rule ) {
+			$counts[ $rule['severity'] ]++;
+		}
+
+		$subject = sprintf(
+			'[Awana Sync] Daglig sammendrag — %d røde, %d gule, %d grønne',
+			$counts['red'],
+			$counts['yellow'],
+			$counts['green']
+		);
+		$body    = self::build_summary_body( $results );
+		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+
+		wp_mail( $recipients, $subject, $body, $headers );
+
+		Awana_Logger::info( 'awana_health: daily summary sent', array( 'recipients' => $recipients ) );
+	}
+
+	/**
+	 * Build the alarm-mail body (plain text).
+	 */
+	private static function build_alert_body( array $issues ): string {
+		$body  = "Helsesjekken har funnet problemer som krever oppmerksomhet:\n\n";
+		foreach ( $issues as $rule ) {
+			$body .= '🔴 ' . $rule['label'] . "\n";
+			$body .= '   ' . $rule['description'] . "\n";
+			if ( $rule['count'] > 0 ) {
+				$body .= sprintf( "   %d ordrer", $rule['count'] );
+				if ( $rule['sum_amount'] > 0 ) {
+					$body .= sprintf( ', sum %s kr', number_format( $rule['sum_amount'], 0, ',', ' ' ) );
+				}
+				$body .= "\n";
+				$preview = array_slice( $rule['orders'], 0, 5 );
+				foreach ( $preview as $order ) {
+					$body .= sprintf(
+						"     - #%d (%s kr, %d t) %s\n",
+						$order['id'],
+						number_format( (float) $order['total'], 0, ',', ' ' ),
+						(int) $order['age_hours'],
+						$order['email']
+					);
+				}
+				if ( $rule['count'] > 5 ) {
+					$body .= sprintf( "     + %d flere\n", $rule['count'] - 5 );
+				}
+			}
+			$body .= "\n";
+		}
+		$body .= "\n----\n";
+		$body .= 'Se detaljer: ' . admin_url( 'admin.php?page=awana-b2b-sync&tab=helse' ) . "\n\n";
+		$body .= sprintf( '(Ingen ny mail om samme regel innen %d timer. Definer AWANA_HEALTH_DEDUP_HOURS i wp-config.php for å justere.)', defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? (int) AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS );
+		return $body;
+	}
+
+	/**
+	 * Build the daily summary mail body (plain text).
+	 */
+	private static function build_summary_body( array $results ): string {
+		$body  = sprintf( "Sync-status %s:\n\n", date_i18n( 'd.m.Y' ) );
+		foreach ( $results as $rule_id => $rule ) {
+			$dot = self::SEVERITY_RED === $rule['severity'] ? '🔴' : ( self::SEVERITY_YELLOW === $rule['severity'] ? '🟡' : '🟢' );
+			if ( self::RULE_LAST_POG_SYNC === $rule_id ) {
+				$body .= sprintf( "%s %s — %s\n", $dot, $rule['label'], $rule['age_human'] ?? 'aldri' );
+			} else {
+				$line = sprintf( '%s %s — %d ordrer', $dot, $rule['label'], (int) $rule['count'] );
+				if ( $rule['sum_amount'] > 0 ) {
+					$line .= sprintf( ' (≈ %s kr)', number_format( $rule['sum_amount'], 0, ',', ' ' ) );
+				}
+				$body .= $line . "\n";
+			}
+		}
+		$body .= "\n----\n";
+		$body .= 'Se Awana Sync → Helse: ' . admin_url( 'admin.php?page=awana-b2b-sync&tab=helse' ) . "\n";
+		return $body;
+	}
+
+	/**
+	 * Resolve recipients from constant; supports CSV.
+	 *
+	 * @return array<string>
+	 */
+	private static function get_alert_recipients(): array {
+		if ( ! defined( 'AWANA_HEALTH_ALERT_RECIPIENTS' ) || empty( AWANA_HEALTH_ALERT_RECIPIENTS ) ) {
+			return array();
+		}
+		return array_filter( array_map( 'trim', explode( ',', AWANA_HEALTH_ALERT_RECIPIENTS ) ) );
+	}
+
+	/**
+	 * Calculate next 8 AM in Europe/Oslo timezone (returns UTC timestamp).
+	 */
+	private static function next_8am_local(): int {
+		$tz   = wp_timezone();
+		$next = new DateTimeImmutable( 'tomorrow 08:00', $tz );
+		return $next->getTimestamp();
 	}
 
 	/**
