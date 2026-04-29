@@ -475,15 +475,21 @@ class Awana_Admin {
 	}
 
 	private function render_pog_cell( $row ) {
-		if ( ! empty( $row['pog_invoice_number'] ) ) {
-			echo '<span style="font-size:11px;">#' . esc_html( $row['pog_invoice_number'] ) . '</span>';
+		// Integrera writes pog_order_number when an order document is created,
+		// and pog_invoice_number when it's converted to an invoice. Most orders
+		// stay at the order stage (status="order") and never get an invoice
+		// number — show whichever one is present.
+		$pog_number = ! empty( $row['pog_invoice_number'] ) ? $row['pog_invoice_number'] : $row['pog_order_number'];
+
+		if ( ! empty( $pog_number ) ) {
+			echo '<span style="font-size:11px;">#' . esc_html( $pog_number ) . '</span>';
 		}
 		if ( ! empty( $row['pog_kid'] ) ) {
 			echo '<br><span style="color:#50575e;font-size:11px;">KID: ' . esc_html( $row['pog_kid'] ) . '</span>';
 		}
 		if ( ! empty( $row['pog_status'] ) ) {
 			echo '<br><span style="color:#50575e;font-size:11px;">' . esc_html( $row['pog_status'] ) . '</span>';
-		} elseif ( empty( $row['pog_invoice_number'] ) ) {
+		} elseif ( empty( $pog_number ) ) {
 			echo '<span style="color:#a7aaad;">&mdash;</span>';
 		}
 	}
@@ -933,6 +939,7 @@ class Awana_Admin {
 			'crm_source'         => $order->get_meta( 'crm_source', true ),
 			'pog_status'         => $order->get_meta( 'pog_status', true ),
 			'pog_invoice_number' => $order->get_meta( 'pog_invoice_number', true ),
+			'pog_order_number'   => $order->get_meta( 'pog_order_number', true ),
 			'pog_kid'            => $order->get_meta( 'pog_kid_number', true ),
 			'has_error'          => ! empty( $last_error ),
 			'last_error'         => $last_error ? $last_error : '',
