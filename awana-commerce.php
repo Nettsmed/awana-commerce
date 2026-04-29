@@ -3,7 +3,7 @@
  * Plugin Name: Awana Commerce
  * Plugin URI: https://awana.no
  * Description: WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
- * Version: 1.4.1
+ * Version: 1.4.2
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'AWANA_COMMERCE_VERSION', '1.4.1' );
+define( 'AWANA_COMMERCE_VERSION', '1.4.2' );
 define( 'AWANA_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AWANA_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -194,53 +194,85 @@ add_action( 'woocommerce_order_status_changed', function( $order_id, $old_status
 }, 10, 4 );
 
 /**
- * Detect pog_customer_number updates via order save hook (HPOS compatible backup)
- * This ensures compatibility with High-Performance Order Storage
+ * Detect pog_* meta updates via order save hook and sync to CRM.
+ * HPOS-compatible (fires for both legacy and HPOS storage).
+ *
+ * Recursion guard: the webhooks called below themselves call
+ * Awana_CRM_Webhook::update_sync_status() which calls $order->save(), which
+ * re-fires this hook. Without protection that becomes infinite recursion and
+ * exhausts PHP memory (observed 2026-04-29 on order #94247 after PR #22
+ * exposed the path for B2B Faktura).
+ *
+ * Two-part guard:
+ *   1) Per-request static flag — prevents the hook from re-entering itself
+ *      regardless of which save() triggered it.
+ *   2) Mark _pog_*_synced_to_crm BEFORE sending webhooks, so even if guard 1
+ *      is bypassed (e.g. via wc_get_order().save() in another request),
+ *      the equality check in the loop above prevents re-trigger.
  */
 add_action( 'woocommerce_after_order_object_save', function( $order ) {
-	// Only process if this is an Awana order
+	static $running = array();
+
 	$invoice_id = $order->get_meta( 'crm_invoice_id', true );
-	$member_id = $order->get_meta( 'crm_member_id', true );
-	
+	$member_id  = $order->get_meta( 'crm_member_id', true );
+
 	if ( empty( $invoice_id ) || empty( $member_id ) ) {
-		return; // Not an Awana order
+		return; // Not an Awana CRM-tracked order
 	}
 
-	$pog_fields = array(
-		'pog_customer_number' => '_pog_customer_synced_to_crm',
-		'pog_invoice_number'  => '_pog_invoice_number_synced_to_crm',
-		'pog_kid_number'      => '_pog_kid_number_synced_to_crm',
-		'pog_status'          => '_pog_status_synced_to_crm',
-	);
+	$order_id = $order->get_id();
+	if ( isset( $running[ $order_id ] ) ) {
+		return; // Already processing this order in current request
+	}
+	$running[ $order_id ] = true;
 
-	$changes_to_mark = array();
-	$should_send_customer_number_webhook = false;
-	$should_send_invoice_status_webhook  = false;
+	try {
+		$pog_fields = array(
+			'pog_customer_number' => '_pog_customer_synced_to_crm',
+			'pog_invoice_number'  => '_pog_invoice_number_synced_to_crm',
+			'pog_kid_number'      => '_pog_kid_number_synced_to_crm',
+			'pog_status'          => '_pog_status_synced_to_crm',
+		);
 
-	foreach ( $pog_fields as $meta_key => $synced_meta_key ) {
-		$current_value = $order->get_meta( $meta_key, true );
-		$last_synced   = $order->get_meta( $synced_meta_key, true );
+		$changes_to_mark                     = array();
+		$should_send_customer_number_webhook = false;
+		$should_send_invoice_status_webhook  = false;
 
-		if ( ! empty( $current_value ) && (string) $last_synced !== (string) $current_value ) {
-			$changes_to_mark[ $synced_meta_key ] = $current_value;
+		foreach ( $pog_fields as $meta_key => $synced_meta_key ) {
+			$current_value = $order->get_meta( $meta_key, true );
+			$last_synced   = $order->get_meta( $synced_meta_key, true );
 
-			if ( $meta_key === 'pog_customer_number' ) {
-				$should_send_customer_number_webhook = true;
-			} else {
-				$should_send_invoice_status_webhook = true;
+			if ( ! empty( $current_value ) && (string) $last_synced !== (string) $current_value ) {
+				$changes_to_mark[ $synced_meta_key ] = $current_value;
+
+				if ( $meta_key === 'pog_customer_number' ) {
+					$should_send_customer_number_webhook = true;
+				} else {
+					$should_send_invoice_status_webhook = true;
+				}
 			}
 		}
-	}
 
-	// If anything changed, send relevant webhook(s) and mark all changed fields as synced
-	if ( ! empty( $changes_to_mark ) ) {
+		if ( empty( $changes_to_mark ) ) {
+			return;
+		}
+
 		Awana_Logger::info(
 			'POG meta changed on order save - syncing to CRM',
 			array(
-				'order_id' => $order->get_id(),
+				'order_id'                 => $order_id,
 				'changed_synced_meta_keys' => array_keys( $changes_to_mark ),
 			)
 		);
+
+		// Mark synced BEFORE webhooks fire. Webhook calls trigger save() which
+		// re-fires this hook; if synced-meta is already equal to current value,
+		// the equality check returns no changes and recursion stops. The static
+		// flag is the primary guard, this is defense-in-depth.
+		foreach ( $changes_to_mark as $synced_meta_key => $value ) {
+			$order->update_meta_data( $synced_meta_key, $value );
+		}
+		$order->save();
 
 		if ( $should_send_customer_number_webhook ) {
 			$current_pog_customer_number = $order->get_meta( 'pog_customer_number', true );
@@ -252,12 +284,8 @@ add_action( 'woocommerce_after_order_object_save', function( $order ) {
 		if ( $should_send_invoice_status_webhook ) {
 			Awana_CRM_Webhook::notify_invoice_status_to_crm( $order, 'Invoice status sync (order save)' );
 		}
-
-		foreach ( $changes_to_mark as $synced_meta_key => $value ) {
-			$order->update_meta_data( $synced_meta_key, $value );
-		}
-
-		$order->save();
+	} finally {
+		unset( $running[ $order_id ] );
 	}
 }, 10, 1 );
 

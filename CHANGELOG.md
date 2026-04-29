@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-04-29
+
+### Fixed
+- **Recursion-OOM i woocommerce_after_order_object_save-hook**: Hooken kalte POG-webhooks som internt kjørte `update_sync_status()` → `$order->save()` → re-fyrte samme hook. Pre-1.4.1 var dette latent fordi B2B Faktura aldri fikk `crm_invoice_id` (guarden returnerte tidlig). 1.4.1 åpnet pathen for Faktura, og første Retry på #94247 tomte 512MB PHP-memory og feilet med "Request failed". Fix: per-request static-flag forhindrer re-entry; `_pog_*_synced_to_crm`-meta settes nå FØR webhooks fyrer som defense-in-depth.
+
 ## [1.4.1] - 2026-04-29
 
 ### Fixed
