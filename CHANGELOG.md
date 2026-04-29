@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-04-29
+
+### Fixed
+- **B2B Faktura-ordrer fikk aldri `crm_invoice_id`**: `notify_checkout_invoice_to_crm()` var hooket kun på `woocommerce_payment_complete`, som ikke fyrer for `bacs` (Faktura går rett til `on-hold`). Faktura-ordrer havnet permanent som "Mangler CRM-ID" i admin-dashbordet med mindre noen klikket Retry manuelt. Fix: ny hook på `woocommerce_checkout_order_created` for B2B Faktura. `should_sync_checkout_invoice()` + `_awana_checkout_invoice_synced`-dedup hindrer dobbel-sync mot eksisterende Nets-flyt.
+- **POG-kolonnen viste bare "order"-statusen uten nummer**: `render_pog_cell()` leste kun `pog_invoice_number`, men Integrera skriver typisk `pog_order_number` (f.eks. 1325 for Misjonskirken Askim). Ordrer som er i "order"-stadiet (ikke konvertert til faktura ennå) viste bare statusstrengen. Fallback til `pog_order_number` når `pog_invoice_number` er tom.
+
 ## [1.4.0] - 2026-04-28
 
 ### Changed

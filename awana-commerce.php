@@ -3,7 +3,7 @@
  * Plugin Name: Awana Commerce
  * Plugin URI: https://awana.no
  * Description: WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'AWANA_COMMERCE_VERSION', '1.4.0' );
+define( 'AWANA_COMMERCE_VERSION', '1.4.1' );
 define( 'AWANA_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AWANA_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -262,8 +262,18 @@ add_action( 'woocommerce_after_order_object_save', function( $order ) {
 }, 10, 1 );
 
 /**
- * Create invoice in Firebase CRM for B2B checkout orders after Nets payment is confirmed.
- * This bridges B2B checkout orders into the existing CRM/POG pipeline.
+ * Create invoice in Firebase CRM for checkout orders.
+ *
+ * Two trigger points needed because WooCommerce treats payment methods
+ * differently:
+ *   - Electronic payments (Nets/Vipps/cards) fire `woocommerce_payment_complete`
+ *     once the gateway confirms the charge.
+ *   - Faktura (`bacs`) is a manual payment method — WC moves the order to
+ *     `on-hold` and never fires `payment_complete`. Without a separate hook,
+ *     B2B Faktura orders would never get a `crm_invoice_id`.
+ *
+ * Both hooks call the same method; `should_sync_checkout_invoice()` and the
+ * `_awana_checkout_invoice_synced` dedup flag prevent double-sync.
  */
 add_action( 'woocommerce_payment_complete', function( $order_id ) {
 	$order = wc_get_order( $order_id );
@@ -272,6 +282,21 @@ add_action( 'woocommerce_payment_complete', function( $order_id ) {
 	}
 
 	// Guards (payment_type, dedup) are handled inside the method
+	Awana_CRM_Webhook::notify_checkout_invoice_to_crm( $order );
+}, 10, 1 );
+
+add_action( 'woocommerce_checkout_order_created', function( $order ) {
+	if ( ! $order || $order->get_payment_method() !== 'bacs' ) {
+		return;
+	}
+
+	// Only B2B Faktura is allowed (B2C bacs is blocked at checkout in v1.2.2);
+	// should_sync_checkout_invoice() enforces this, but checking here avoids
+	// a wasted call.
+	if ( $order->get_meta( '_awana_payment_type', true ) !== 'organization' ) {
+		return;
+	}
+
 	Awana_CRM_Webhook::notify_checkout_invoice_to_crm( $order );
 }, 10, 1 );
 
