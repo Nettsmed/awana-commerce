@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-04-30
+
+### Fixed
+- **Local Pickup ble pre-valgt som default shipping i checkout**: Etter Local Pickup Straume ble lagt til 29.04 satte WC `local_pickup:5` som default for alle kunder, fordi WCs `wc_get_default_shipping_method_for_package` har en "preserve chosen pickup"-logikk som beholder pickup på tvers av recalculation-passes selv når Posten Bring-rater dukker opp i en senere pass. Lagt til `Awana_Shipping`-klasse med filter på `woocommerce_shipping_chosen_method` som bytter default fra `local_pickup` til billigste Posten-rate når begge er tilgjengelige. Bekreftet i prod-DB-simulering: før fix ble `local_pickup:5` valgt for postnr 5353; etter fix blir `posten-bring-checkout-mailbox` valgt. Brukere kan fortsatt manuelt klikke Local Pickup — fixen styrer kun forhåndsvalg.
+
 ## [1.4.3] - 2026-04-30
 
 ### Changed
