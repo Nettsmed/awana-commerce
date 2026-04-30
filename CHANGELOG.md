@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-04-30
+
+### Added
+- **Klær-frakt-logikk flyttet fra Code Snippet til plugin-kode** (`Awana_Shipping_Klaer`). Implementerer Eiriks bekreftede modell (e-post 30.04.2026): klær-only-kurv = 199 kr inkl. mva fast frakt (Melings sender direkte fra sitt lager), bok-only-kurv = Posten Bring + Local Pickup som vanlig, mixed kurv = Bring/Pickup-rate + 199 kr fee for klær. Detekterer både `klaer` og `melings` shipping-class-slugs (legacy — beholdt til DB-konsolidering). Klar tax-håndtering: 199 splittes som 159.20 net + 39.80 mva (25%). Bedre kunde-label "Frakt klær (Melings)" istedenfor "Tillegg for spesialfrakt". Forbedringer over Code Snippet 12: ny `WC_Shipping_Rate`-objekt (kaprer ikke eksisterende rate som snippet gjorde — defensiv mot Bring API-feil), eksplisitt tax-class håndtering med fallback (`get_rates('')` fordi DB-raten har class=''), edge case for tom rates-input. Alle scenarier verifisert mot prod-DB-kopi (awana-post Local site): 1 klær = 388 kr, 3 klær = 766 kr, bok+Bring = 158 kr, bok+Local Pickup = 99 kr, mixed+Bring = 546 kr, mixed+LP = 487 kr, 2 klær + 5 bok + Bring = 1141 kr.
+
+### Removed
+- Code Snippet #12 "Sikre fast frakt-sats for klær" bør deaktiveres etter deploy. Lå i `wp_snippets` siden 2025-11-03 og hadde samme intensjon, men: (1) levde i DB istedenfor git, (2) "Tillegg for spesialfrakt"-label var uforståelig, (3) hijacket billigste eksisterende rate på klær-only og brakk hvis Bring API ikke returnerte rater, (4) tax-håndtering Sindre selv var usikker på i Nov 2025.
+
+### Notes
+- **Split-package vs fee-approach**: Den arkitekturisk-rene løsningen (split kurv i klær-package + bok-package) ble vurdert og forkastet for nå. WooCommerce Blocks `ShippingController::filter_shipping_packages()` fjerner Local Pickup fra ALLE pakker når ikke alle støtter pickup — split-implementasjonen ville miste Local Pickup på mixed carts (UX-regresjon). Dessuten: alle 23 klær-produkter har unset/zero vekt på awana.no per 30.04.2026 (verifisert), så Brings rate-beregning på mixed cart er ikke påvirket av klær uansett. Hvis/når Eirik setter klær-vekter, vurder å bytte til split-package.
+
 ## [1.4.4] - 2026-04-30
 
 ### Fixed
