@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-04-30
+
+### Changed
+- **Helse-regler ignorerer pre-go-live ordrer**: Reglene 1-4 filtrerer nå på `date_created_gmt >= AWANA_HEALTH_GOLIVE_DATE` (default `2026-04-10 00:00:00` — dagen Nets gikk live på awana.no). Pre-launch test-ordrer og streifkunder fra perioden mens butikk.awana.no var hovedkanalen er ikke lenger støy i dashbordet eller daglig sammendrag. Override via `AWANA_HEALTH_GOLIVE_DATE`-konstant i wp-config.php hvis nødvendig. Cutoff vises i Helse → Konfigurasjon-blokken.
+
 ## [1.4.2] - 2026-04-29
 
 ### Fixed

@@ -19,6 +19,12 @@ class Awana_Health_Check {
 
 	const TRANSIENT_PREFIX        = 'awana_health_alert_sent_';
 	const DEDUP_HOURS             = 24;
+	// Go-live cutoff — orders created before this date are ignored by all
+	// order-based rules (1-4). Awana-butikken på awana.no gikk live 10. april
+	// 2026; alt før det er pre-launch test-data eller streifordrer manuelt
+	// håndtert i butikk.awana.no's POG. Override via AWANA_HEALTH_GOLIVE_DATE
+	// constant in wp-config.php if needed.
+	const DEFAULT_GOLIVE_DATE     = '2026-04-10 00:00:00';
 	// Tracks the last successful Firebase createCheckoutInvoice (NOT POG).
 	// True POG-mapping happens in Integrera and is detected indirectly via Rule 2
 	// (on-hold Faktura without pog_customer_number).
@@ -290,6 +296,17 @@ class Awana_Health_Check {
 	}
 
 	/**
+	 * Resolve go-live cutoff date (UTC). Order-based rules ignore anything
+	 * created before this. Override via AWANA_HEALTH_GOLIVE_DATE constant.
+	 */
+	private static function get_golive_cutoff(): string {
+		if ( defined( 'AWANA_HEALTH_GOLIVE_DATE' ) && ! empty( AWANA_HEALTH_GOLIVE_DATE ) ) {
+			return (string) AWANA_HEALTH_GOLIVE_DATE;
+		}
+		return self::DEFAULT_GOLIVE_DATE;
+	}
+
+	/**
 	 * Resolve recipients from constant; supports CSV.
 	 *
 	 * @return array<string>
@@ -458,6 +475,7 @@ class Awana_Health_Check {
 	private static function render_settings_block() {
 		$recipients = defined( 'AWANA_HEALTH_ALERT_RECIPIENTS' ) ? AWANA_HEALTH_ALERT_RECIPIENTS : '(ikke konfigurert ennå — sett AWANA_HEALTH_ALERT_RECIPIENTS i wp-config.php)';
 		$dedup      = defined( 'AWANA_HEALTH_DEDUP_HOURS' ) ? AWANA_HEALTH_DEDUP_HOURS : self::DEDUP_HOURS;
+		$golive     = self::get_golive_cutoff();
 		?>
 		<div class="awana-stuck-section">
 			<h3><?php esc_html_e( 'Konfigurasjon', 'awana-commerce' ); ?></h3>
@@ -466,6 +484,7 @@ class Awana_Health_Check {
 				<tr><td style="color: #646970;">Daglig sammendrag</td><td>Kl 08:00 Europe/Oslo · neste: <code><?php echo esc_html( self::next_run_label( 'awana_health_daily_summary' ) ); ?></code></td></tr>
 				<tr><td style="color: #646970;">Mottakere</td><td><?php echo esc_html( $recipients ); ?></td></tr>
 				<tr><td style="color: #646970;">Dedup-vindu</td><td><?php echo (int) $dedup; ?> timer per regel</td></tr>
+				<tr><td style="color: #646970;">Go-live cutoff</td><td><code><?php echo esc_html( $golive ); ?></code> · regler ignorerer ordrer fra før denne datoen (override: <code>AWANA_HEALTH_GOLIVE_DATE</code> i wp-config.php)</td></tr>
 				<tr><td style="color: #646970;">wp_option for siste sync</td><td><code><?php echo esc_html( self::OPTION_LAST_FIREBASE_SYNC ); ?></code></td></tr>
 			</table>
 		</div>
@@ -538,14 +557,19 @@ class Awana_Health_Check {
 	private static function rule_1_pending_nets(): array {
 		global $wpdb;
 
-		$rows = $wpdb->get_results(
-			"SELECT id, total_amount AS total, billing_email AS email, date_created_gmt AS date_gmt,
-			        TIMESTAMPDIFF(HOUR, date_created_gmt, NOW()) AS age_hours
-			 FROM {$wpdb->prefix}wc_orders
-			 WHERE status = 'wc-pending'
-			   AND payment_method = 'dibs_easy'
-			   AND date_created_gmt < DATE_SUB(NOW(), INTERVAL 2 HOUR)
-			 ORDER BY date_created_gmt ASC",
+		$cutoff = self::get_golive_cutoff();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, total_amount AS total, billing_email AS email, date_created_gmt AS date_gmt,
+				        TIMESTAMPDIFF(HOUR, date_created_gmt, NOW()) AS age_hours
+				 FROM {$wpdb->prefix}wc_orders
+				 WHERE status = 'wc-pending'
+				   AND payment_method = 'dibs_easy'
+				   AND date_created_gmt < DATE_SUB(NOW(), INTERVAL 2 HOUR)
+				   AND date_created_gmt >= %s
+				 ORDER BY date_created_gmt ASC",
+				$cutoff
+			),
 			ARRAY_A
 		) ?: array();
 
@@ -568,20 +592,25 @@ class Awana_Health_Check {
 	private static function rule_2_faktura_no_pog(): array {
 		global $wpdb;
 
-		$rows = $wpdb->get_results(
-			"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
-			        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
-			 FROM {$wpdb->prefix}wc_orders o
-			 LEFT JOIN {$wpdb->prefix}wc_orders_meta m
-			   ON o.id = m.order_id AND m.meta_key = 'pog_customer_number'
-			 LEFT JOIN {$wpdb->prefix}wc_orders_meta dis
-			   ON o.id = dis.order_id AND dis.meta_key = '" . self::META_DISMISSED . "'
-			 WHERE o.status = 'wc-on-hold'
-			   AND o.payment_method = 'bacs'
-			   AND o.date_created_gmt < DATE_SUB(NOW(), INTERVAL 48 HOUR)
-			   AND m.meta_value IS NULL
-			   AND dis.meta_value IS NULL
-			 ORDER BY o.date_created_gmt ASC",
+		$cutoff = self::get_golive_cutoff();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
+				        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
+				 FROM {$wpdb->prefix}wc_orders o
+				 LEFT JOIN {$wpdb->prefix}wc_orders_meta m
+				   ON o.id = m.order_id AND m.meta_key = 'pog_customer_number'
+				 LEFT JOIN {$wpdb->prefix}wc_orders_meta dis
+				   ON o.id = dis.order_id AND dis.meta_key = '" . self::META_DISMISSED . "'
+				 WHERE o.status = 'wc-on-hold'
+				   AND o.payment_method = 'bacs'
+				   AND o.date_created_gmt < DATE_SUB(NOW(), INTERVAL 48 HOUR)
+				   AND o.date_created_gmt >= %s
+				   AND m.meta_value IS NULL
+				   AND dis.meta_value IS NULL
+				 ORDER BY o.date_created_gmt ASC",
+				$cutoff
+			),
 			ARRAY_A
 		) ?: array();
 
@@ -604,22 +633,27 @@ class Awana_Health_Check {
 	private static function rule_3_b2b_nets_no_firebase(): array {
 		global $wpdb;
 
-		$rows = $wpdb->get_results(
-			"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
-			        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
-			 FROM {$wpdb->prefix}wc_orders o
-			 JOIN {$wpdb->prefix}wc_orders_meta pt
-			   ON o.id = pt.order_id AND pt.meta_key = '_awana_payment_type' AND pt.meta_value = 'organization'
-			 LEFT JOIN {$wpdb->prefix}wc_orders_meta crm
-			   ON o.id = crm.order_id AND crm.meta_key = 'crm_invoice_id'
-			 LEFT JOIN {$wpdb->prefix}wc_orders_meta dis
-			   ON o.id = dis.order_id AND dis.meta_key = '" . self::META_DISMISSED . "'
-			 WHERE o.status IN ('wc-processing', 'wc-completed')
-			   AND o.payment_method = 'dibs_easy'
-			   AND o.date_created_gmt < DATE_SUB(NOW(), INTERVAL 1 HOUR)
-			   AND crm.meta_value IS NULL
-			   AND dis.meta_value IS NULL
-			 ORDER BY o.date_created_gmt ASC",
+		$cutoff = self::get_golive_cutoff();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
+				        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
+				 FROM {$wpdb->prefix}wc_orders o
+				 JOIN {$wpdb->prefix}wc_orders_meta pt
+				   ON o.id = pt.order_id AND pt.meta_key = '_awana_payment_type' AND pt.meta_value = 'organization'
+				 LEFT JOIN {$wpdb->prefix}wc_orders_meta crm
+				   ON o.id = crm.order_id AND crm.meta_key = 'crm_invoice_id'
+				 LEFT JOIN {$wpdb->prefix}wc_orders_meta dis
+				   ON o.id = dis.order_id AND dis.meta_key = '" . self::META_DISMISSED . "'
+				 WHERE o.status IN ('wc-processing', 'wc-completed')
+				   AND o.payment_method = 'dibs_easy'
+				   AND o.date_created_gmt < DATE_SUB(NOW(), INTERVAL 1 HOUR)
+				   AND o.date_created_gmt >= %s
+				   AND crm.meta_value IS NULL
+				   AND dis.meta_value IS NULL
+				 ORDER BY o.date_created_gmt ASC",
+				$cutoff
+			),
 			ARRAY_A
 		) ?: array();
 
@@ -643,21 +677,26 @@ class Awana_Health_Check {
 	private static function rule_4_migration_orphans(): array {
 		global $wpdb;
 
-		$rows = $wpdb->get_results(
-			"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
-			        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
-			 FROM {$wpdb->prefix}wc_orders o
-			 WHERE o.status = 'wc-on-hold'
-			   AND o.payment_method = 'bacs'
-			   AND o.id NOT IN (
-			     SELECT order_id FROM {$wpdb->prefix}wc_orders_meta
-			     WHERE meta_key = '_awana_payment_type'
-			   )
-			   AND o.id NOT IN (
-			     SELECT order_id FROM {$wpdb->prefix}wc_orders_meta
-			     WHERE meta_key = '" . self::META_DISMISSED . "' AND meta_value = '1'
-			   )
-			 ORDER BY o.date_created_gmt ASC",
+		$cutoff = self::get_golive_cutoff();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT o.id, o.total_amount AS total, o.billing_email AS email, o.date_created_gmt AS date_gmt,
+				        TIMESTAMPDIFF(HOUR, o.date_created_gmt, NOW()) AS age_hours
+				 FROM {$wpdb->prefix}wc_orders o
+				 WHERE o.status = 'wc-on-hold'
+				   AND o.payment_method = 'bacs'
+				   AND o.date_created_gmt >= %s
+				   AND o.id NOT IN (
+				     SELECT order_id FROM {$wpdb->prefix}wc_orders_meta
+				     WHERE meta_key = '_awana_payment_type'
+				   )
+				   AND o.id NOT IN (
+				     SELECT order_id FROM {$wpdb->prefix}wc_orders_meta
+				     WHERE meta_key = '" . self::META_DISMISSED . "' AND meta_value = '1'
+				   )
+				 ORDER BY o.date_created_gmt ASC",
+				$cutoff
+			),
 			ARRAY_A
 		) ?: array();
 
