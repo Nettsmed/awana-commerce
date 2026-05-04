@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-05-04
+
+### Added
+- **`Awana_B2B_Invoice_Notifier`** — verifikasjons-mail på hver ny B2B Faktura-ordre. Hooker på `woocommerce_order_status_on-hold`, filtrerer på `payment_method=bacs` + `_awana_payment_type=organization`, sender til `AWANA_HEALTH_ALERT_RECIPIENTS`. Idempotent via `_awana_b2b_notified` order meta. Mailen lister produktlinjer, frakt, mva, total + sjekkliste for å verifisere at POG-fakturaen får med shipping og riktig mva (relatert til POG↔WC-mismatch / Integrera ticket #6462). Slå av når Romanos fix er bekreftet: `define( 'AWANA_B2B_VERIFICATION_MODE', false );` i wp-config.php.
+
 ## [1.4.7] - 2026-05-04
 
 ### Added
