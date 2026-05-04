@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.6] - 2026-05-04
+
+### Fixed
+- **Daglig sammendrag-mail teller informasjons-regler som rød**: 1.4.5-fixen ekskluderte Rule 5 fra 30-min-alarmer, men daily summary brukte fortsatt rå `$counts['red']` og sendte mail fordi Rule 5 fortsatt er rød internt. Sentralisert `ALERT_EXCLUDED_RULES`-konstant brukes nå begge steder, og daily summary teller kun *actionable* røde regler. Verifisert mot prod: med Rule 5 = rød, Rule 4 = gul, og resten grønne sender hverken cron eller daily summary mail.
+
 ## [1.4.5] - 2026-05-04
 
 ### Changed

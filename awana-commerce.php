@@ -3,7 +3,7 @@
  * Plugin Name: Awana Commerce
  * Plugin URI: https://awana.no
  * Description: WooCommerce integration hub for Awana — invoice sync, CRM webhooks, B2B checkout, Firebase org sync, and admin dashboard.
- * Version: 1.4.5
+ * Version: 1.4.6
  * Author: Awana
  * Author URI: https://awana.no
  * Requires at least: 5.8
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'AWANA_COMMERCE_VERSION', '1.4.5' );
+define( 'AWANA_COMMERCE_VERSION', '1.4.6' );
 define( 'AWANA_COMMERCE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AWANA_COMMERCE_URL', plugin_dir_url( __FILE__ ) );
 

@@ -49,6 +49,17 @@ class Awana_Health_Check {
 	const SEVERITY_GREEN  = 'green';
 
 	/**
+	 * Rules whose state is informational only — they never trigger alarm-mail
+	 * and do not keep the daily summary alive on otherwise-quiet days.
+	 *
+	 * Status remains visible in the admin Helse-tab regardless.
+	 */
+	const ALERT_EXCLUDED_RULES = array(
+		self::RULE_MIGRATION_ORPHANS,
+		self::RULE_LAST_FIREBASE_SYNC,
+	);
+
+	/**
 	 * Initialize hooks (cron, AJAX, etc.).
 	 *
 	 * Lightweight: only registers callbacks. Schedule-existence is verified
@@ -116,10 +127,7 @@ class Awana_Health_Check {
 	 * Per-rule 24h dedup-transient prevents repeat-mail for the same condition.
 	 */
 	public static function run_cron() {
-		$excluded = array(
-			self::RULE_MIGRATION_ORPHANS,
-			self::RULE_LAST_FIREBASE_SYNC,
-		);
+		$excluded = self::ALERT_EXCLUDED_RULES;
 		$results  = self::run_checks();
 		$issues   = array();
 		foreach ( $results as $rule ) {
@@ -207,17 +215,22 @@ class Awana_Health_Check {
 			return;
 		}
 
-		$counts = array(
+		$counts          = array(
 			'red'    => 0,
 			'yellow' => 0,
 			'green'  => 0,
 		);
+		$actionable_red  = 0;
 		foreach ( $results as $rule ) {
 			$counts[ $rule['severity'] ]++;
+			if ( self::SEVERITY_RED === $rule['severity']
+				&& ! in_array( $rule['rule_id'], self::ALERT_EXCLUDED_RULES, true ) ) {
+				$actionable_red++;
+			}
 		}
 
-		if ( 0 === $counts['red'] ) {
-			Awana_Logger::info( 'awana_health: daily summary skipped (no red rules)', array( 'counts' => $counts ) );
+		if ( 0 === $actionable_red ) {
+			Awana_Logger::info( 'awana_health: daily summary skipped (no actionable red rules)', array( 'counts' => $counts ) );
 			return;
 		}
 
