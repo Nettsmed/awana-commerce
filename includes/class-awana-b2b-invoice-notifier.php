@@ -53,14 +53,18 @@ class Awana_B2B_Invoice_Notifier {
 
 		$sent = wp_mail( $recipients, $subject, $body, $headers );
 
-		$order->update_meta_data( self::META_NOTIFIED, gmdate( 'c' ) );
-		$order->save_meta_data();
-
-		Awana_Logger::info( 'awana_b2b_notifier: verification mail sent', array(
-			'order_id'   => $order->get_id(),
-			'recipients' => $recipients,
-			'sent'       => $sent,
-		) );
+		if ( $sent ) {
+			$order->update_meta_data( self::META_NOTIFIED, gmdate( 'c' ) );
+			$order->save_meta_data();
+			Awana_Logger::info( 'awana_b2b_notifier: verification mail sent', array(
+				'order_id'   => $order->get_id(),
+				'recipients' => $recipients,
+			) );
+		} else {
+			Awana_Logger::warning( 'awana_b2b_notifier: wp_mail returned false; will retry on next status transition', array(
+				'order_id' => $order->get_id(),
+			) );
+		}
 	}
 
 	private static function is_verification_mode_enabled(): bool {
@@ -89,11 +93,11 @@ class Awana_B2B_Invoice_Notifier {
 		$lines[] = sprintf( 'Ny B2B Faktura-ordre #%d satt til on-hold.', $order->get_id() );
 		$lines[] = '';
 		$lines[] = 'Kunde:';
-		$company = $order->get_billing_company();
+		$company = wp_strip_all_tags( (string) $order->get_billing_company() );
 		if ( $company ) {
 			$lines[] = '  ' . $company;
 		}
-		$lines[] = '  ' . trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+		$lines[] = '  ' . wp_strip_all_tags( trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ) );
 		$lines[] = '  ' . sanitize_email( $order->get_billing_email() );
 		$lines[] = '';
 
@@ -101,18 +105,19 @@ class Awana_B2B_Invoice_Notifier {
 		foreach ( $order->get_items() as $item ) {
 			$lines[] = sprintf(
 				'  - %s × %d = %s kr',
-				$item->get_name(),
+				wp_strip_all_tags( (string) $item->get_name() ),
 				$item->get_quantity(),
 				number_format( (float) $item->get_total(), 2, ',', ' ' )
 			);
 		}
 
 		$shipping_total = (float) $order->get_shipping_total();
+		$shipping_label = wp_strip_all_tags( (string) $order->get_shipping_method() );
 		$lines[] = '';
 		$lines[] = sprintf(
 			'Frakt: %s kr (%s)',
 			number_format( $shipping_total, 2, ',', ' ' ),
-			$order->get_shipping_method() ?: '—'
+			$shipping_label ?: '—'
 		);
 		$lines[] = sprintf( 'Mva: %s kr', number_format( (float) $order->get_total_tax(), 2, ',', ' ' ) );
 		$lines[] = sprintf( 'Total: %s kr', number_format( (float) $order->get_total(), 2, ',', ' ' ) );
