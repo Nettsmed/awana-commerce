@@ -106,14 +106,20 @@ class Awana_Health_Check {
 	 * (e.g. Rule 3: B2B Nets without Firebase) are surfaced within 30 min, not
 	 * only in the daily summary.
 	 *
-	 * Informational rules (e.g. Rule 4: migration orphans — known legacy data
-	 * pending manual cleanup) are excluded via ALERT_EXCLUDED_RULES so they
-	 * appear in summary but don't generate noise.
+	 * Informational rules are excluded — they appear in the daily summary but
+	 * do not generate alarm-mail noise:
+	 *  - Rule 4 (migration orphans): known legacy data pending manual cleanup.
+	 *  - Rule 5 (last Firebase sync): "stale" only because of low/no B2B-Nets
+	 *    traffic. Real Firebase failures surface via Rule 3 (B2B Nets without
+	 *    firebase_invoice_id) within 30 min, so Rule 5 alone is not actionable.
 	 *
 	 * Per-rule 24h dedup-transient prevents repeat-mail for the same condition.
 	 */
 	public static function run_cron() {
-		$excluded = array( self::RULE_MIGRATION_ORPHANS );
+		$excluded = array(
+			self::RULE_MIGRATION_ORPHANS,
+			self::RULE_LAST_FIREBASE_SYNC,
+		);
 		$results  = self::run_checks();
 		$issues   = array();
 		foreach ( $results as $rule ) {
@@ -188,7 +194,11 @@ class Awana_Health_Check {
 	}
 
 	/**
-	 * Daily summary cron callback — sends regardless of state.
+	 * Daily summary cron callback — sends only when at least one rule is RED.
+	 *
+	 * Quiet-by-default: yellow/informational state alone (e.g. migration
+	 * orphans, idle Firebase sync) does not produce mail. Status remains
+	 * visible in the admin Helse-tab regardless.
 	 */
 	public static function send_daily_summary() {
 		$results    = self::run_checks();
@@ -204,6 +214,11 @@ class Awana_Health_Check {
 		);
 		foreach ( $results as $rule ) {
 			$counts[ $rule['severity'] ]++;
+		}
+
+		if ( 0 === $counts['red'] ) {
+			Awana_Logger::info( 'awana_health: daily summary skipped (no red rules)', array( 'counts' => $counts ) );
+			return;
 		}
 
 		$subject = sprintf(
