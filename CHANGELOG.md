@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Org.nr droppet på CRM-genererte fakturaer → EHF feilet** (`Awana_Order_Handler::set_order_meta`). Firebase/Awana digital sender `organizationNumber` i payloaden til `/awana/v1/invoice` (`membershipInvoiceWebhook.ts`), men order-handleren leste aldri feltet — det ble stille forkastet. Dermed fikk CRM-genererte B2B-ordrer ingen org.nr, så Integrera/POG ikke kunne opprette en gyldig norsk EHF-kunde og e-faktura-leveringen brøt. Mapper nå `organizationNumber` (fallback `orgNumber`) til den kanoniske `org_number`-meta-nøkkelen — samme nøkkel som B2B-web-checkout allerede bruker. Kun checkout-løypa hadde org.nr før; CRM-løypa manglet den helt. Forward-only: eksisterende ordrer (f.eks. 94386/94515) får org.nr ved ny POST av samme `invoiceId` (idempotent) eller manuell backfill + ny Integrera/POG-sync. **Gjenstår å verifisere mot Integrera-config at `org_number`-meta er nøkkelen deres order-eksport faktisk leser.**
+
 ## [1.5.0] - 2026-05-04
 
 ### Added
