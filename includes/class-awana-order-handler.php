@@ -362,6 +362,19 @@ class Awana_Order_Handler {
 		if ( isset( $data['pogOurReferenceId'] ) && is_numeric( $data['pogOurReferenceId'] ) ) {
 			$order->update_meta_data( 'pog_our_reference_id', intval( $data['pogOurReferenceId'] ) );
 		}
+
+		// Organization number (org.nr) for B2B / EHF invoicing.
+		// Stored under the canonical `org_number` meta key — the same key the B2B
+		// web-checkout path writes (Awana_Checkout_Org::META_ORG_NUMBER) and the
+		// createCheckoutInvoice webhook reads back. Without this, CRM-originated
+		// orders carry no org.nr, so Integrera/POG cannot build a valid Norwegian
+		// EHF customer record and e-invoice delivery fails.
+		// CRM (Firebase) sends `organizationNumber`; `orgNumber` kept as a fallback
+		// mirroring the upstream resolution in membershipInvoiceWebhook.
+		$org_number = $data['organizationNumber'] ?? $data['orgNumber'] ?? '';
+		if ( '' !== trim( (string) $org_number ) ) {
+			$order->update_meta_data( 'org_number', sanitize_text_field( $org_number ) );
+		}
 	}
 }
 
